@@ -37,7 +37,7 @@ The realtime dashboard is part of this repo at **`monitor/`** (Flask + SocketIO,
   <br/><em>LILYGO gateway</em>
 </td>
 <td align="center" width="33%">
-  <img src="docs/diagrams/sensecap-mesh-mesh.drawio.png" width="100%" alt="Mesh Network Topology"/>
+  <img src="docs/diagrams/mesh.png" width="100%" alt="Mesh Network Topology"/>
   <br/><em>Mesh network topology</em>
 </td>
 </tr></table>
@@ -451,7 +451,7 @@ Set up a full PlatformIO environment to compile and flash custom firmware onto S
 
 <table><tr>
 <td align="center" width="30%">
-  <img src="docs/diagrams/i2c_prob1.png" width="40%" alt="Grove port with cable twist highlighted"/>
+  <img src="docs/diagrams/i2c_prob1.png" width="60%" alt="Grove port with cable twist highlighted"/>
   <br/><em>Grove port on the node board. Note the cable twist at the connector.</em>
 </td>
 <td align="center" width="30%">
