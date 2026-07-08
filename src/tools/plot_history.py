@@ -27,7 +27,7 @@ import requests
 # ── InfluxDB connection ───────────────────────────────────────────────────────
 
 INFLUX_URL  = os.environ.get("DB_HOST",     "http://localhost:8086")
-INFLUX_DB   = os.environ.get("DB_NAME",     "cpsrtc_lora_telemetry")
+INFLUX_DB   = os.environ.get("DB_NAME",     "cpsrtc_meshtastic_telemetry")
 INFLUX_USER = os.environ.get("DB_USERNAME", "admin")
 INFLUX_PASS = os.environ.get("DB_PASSWORD", "admin")
 

@@ -28,7 +28,7 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2.0
-    container_name: lora-testbed-mqtt-broker
+    container_name: meshtastic-testbed-mqtt-broker
     restart: unless-stopped
     volumes:
       - ./mqtt:/mosquitto/config
@@ -42,17 +42,17 @@ services:
 
   web:
     build: ./monitor
-    container_name: lora-testbed-web
+    container_name: meshtastic-testbed-web
     restart: unless-stopped
     env_file: configuration.env          # DB_USERNAME / DB_PASSWORD
     environment:
       - DB_HOST=influxdb                  # reach InfluxDB by service name
       - DB_PORT=8086
-      - DB_NAME=cpsrtc_lora_telemetry
+      - DB_NAME=cpsrtc_meshtastic_telemetry
       - BROKER_ADDRESS=mosquitto          # reach Mosquitto by service name
       - BROKER_PORT=1883
-      - CLIENT_ID=lora-testbed-monitor
-      - SUBSCRIBE_TOPIC=lora-testbed/+/+
+      - CLIENT_ID=meshtastic-testbed-monitor
+      - SUBSCRIBE_TOPIC=meshtastic-testbed/+/+
     ports:
       - "5000:5000"
     depends_on:

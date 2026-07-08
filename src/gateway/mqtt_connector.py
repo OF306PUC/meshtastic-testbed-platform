@@ -17,9 +17,9 @@ class MQTTConnector:
         client (mqtt.Client): The Paho MQTT client instance.
     """
 
-    TOPIC_POSITION = "lora-testbed/{node_label}/position"
-    TOPIC_DEVICE = "lora-testbed/{node_label}/device"
-    TOPIC_ENV    = "lora-testbed/{node_label}/environment"
+    TOPIC_POSITION = "meshtastic-testbed/{node_label}/position"
+    TOPIC_DEVICE = "meshtastic-testbed/{node_label}/device"
+    TOPIC_ENV    = "meshtastic-testbed/{node_label}/environment"
 
     def __init__(self, broker_address: str, port: int = 1883, client_id: str = ""):
         """

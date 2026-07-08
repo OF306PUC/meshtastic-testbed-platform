@@ -20,6 +20,25 @@ Entry format:
 
 ---
 
+## 2026-07-08 — Namespace rename: channel + `lora-testbed` → `meshtastic-testbed`
+**Time:** (aprox)
+**User request:** `/start`; luego cerrar el cambio sin commitear en `radio_config.py` (rename de canal, sin commitear); y renombrar todo el namespace `lora-testbed` → `meshtastic-testbed` (incluida la DB InfluxDB).
+### Actions taken
+- **Canal:** confirmado rename `CHANNEL_NAME "TB CPS-RTC" → "CPS_RTC"` (fuente única en `src/common/radio_config.py`). Sincronizadas 5 referencias en README, project-overview, testbeds/san-joaquin, hardware/radio-inventory-schema. Verificado que el contrato gateway↔web NO se afecta (topics usan prefijo, no el nombre de canal).
+- **Namespace MQTT/DB:** `lora-testbed` → `meshtastic-testbed` y `cpsrtc_lora_telemetry` → `cpsrtc_meshtastic_telemetry` en los 3 lados del contrato + periféricos: `mqtt_connector.py`, `telegraf.conf`, `monitor/param.py`, `docker-compose.yaml`, `src/gateway/config.py`, `src/tools/plot_history.py`, `configuration.env.example`, `tests/test_mesh_receiver.py` (3 asserts), README, project-overview, y la memoria `data-contract-gateway-web`.
+- **Nombre de repo:** corregidas referencias factuales al repo viejo en README (URL de clone → `meshtastic-testbed-platform.git`, `cd`, raíz del árbol) y en project-overview (raíz del árbol). Historial de `session-log` dejado intacto.
+- Scaffold de `/start`: creado `.tmp/`; `execution/` creado y luego descartado a pedido del owner (no debe commitearse; `rm` bloqueado por permisos — queda como dir vacío sin trackear).
+### Decisions
+- Rename de canal y de namespace confirmados como definitivos por el owner.
+- DB InfluxDB **sí** renombrada (owner lo pidió). Implica que el histórico queda en la DB vieja `cpsrtc_lora_telemetry`; migración/descarte es decisión operativa aparte del owner.
+- **Nada commiteado** esta sesión (posture "solo working tree"), por decisión del owner.
+### Outcomes
+- Namespace `lora-testbed`/`cpsrtc_lora` con cero ocurrencias en el árbol (fuera de historial git y entradas históricas de la bitácora). `py_compile` OK en los .py editados. Tests no ejecutables en este entorno (`meshtastic` no instalado; falla en import, ajeno al cambio).
+### Next steps / open questions
+- **Operativo (owner):** re-correr `configure.py` en los 3 nodos + gateway para reunirlos en el canal `CPS_RTC`; reiniciar gateway + telegraf + monitor para el nuevo prefijo de topic; decidir migración del histórico InfluxDB `cpsrtc_lora_telemetry` → `cpsrtc_meshtastic_telemetry`.
+- **git-lead:** commit del rename (canal + namespace + doc-sync) cuando el owner lo apruebe.
+- Eliminar `execution/` (`rm -rf execution`) si se quiere fuera del working tree.
+
 ## 2026-07-08 — Repo rename + reorg to meshtastic-testbed-platform
 **Time:** (aprox)
 **User request:** "Start over" the project reusing existing content: reorganise, add

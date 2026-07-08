@@ -30,7 +30,7 @@ _load_dotenv(_REPO_ROOT / ".env")
 
 # ── Shared, non-secret radio settings (node and gateway must match) ───────────
 CHANNEL_IDX  = 0
-CHANNEL_NAME = "TB CPS-RTC"
+CHANNEL_NAME = "CPS_RTC"
 LORA_REGION  = "ANZ"
 LORA_PRESET  = "LONG_FAST"
 

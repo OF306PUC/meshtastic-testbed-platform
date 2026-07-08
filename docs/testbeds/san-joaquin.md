@@ -69,7 +69,7 @@ current deployment (from `mesh_config.json`):
 
 - **Region:** `ANZ`
 - **Modem preset:** `LONG_FAST`
-- **Channel name:** `TB CPS-RTC`
+- **Channel name:** `CPS_RTC`
 - **Rebroadcast mode:** nodes `LOCAL_ONLY`; gateway `CLIENT_MUTE`
 - **PSK:** shared channel key stored in `.env` (loaded by `src/common/radio_config.py`)
 - **Meshtastic firmware:** v2.7.19

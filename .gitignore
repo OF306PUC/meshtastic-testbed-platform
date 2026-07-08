@@ -8,6 +8,7 @@ config/pwfile
 data/
 log/
 .tmp/
+execution/
 
 # Generated plot images (the plotting *scripts* are tracked)
 node-*.png

@@ -202,7 +202,7 @@ class TestEnvTelemetry(unittest.TestCase):
         self.receiver._on_receive(_env_packet(), interface=None)
         label, _ = self.fake.env_calls[0]
         expected_topic = MQTTConnector.TOPIC_ENV.format(node_label=label)
-        self.assertEqual(expected_topic, f"lora-testbed/{_KNOWN_NODE_LABEL}/environment")
+        self.assertEqual(expected_topic, f"meshtastic-testbed/{_KNOWN_NODE_LABEL}/environment")
 
     # -- Test 2 (omit-not-zero contract) --------------------------------------
 
@@ -266,7 +266,7 @@ class TestDeviceTelemetry(unittest.TestCase):
         self.receiver._on_receive(_device_packet(), interface=None)
         label, _ = self.fake.device_calls[0]
         expected_topic = MQTTConnector.TOPIC_DEVICE.format(node_label=label)
-        self.assertEqual(expected_topic, f"lora-testbed/{_KNOWN_NODE_LABEL}/device")
+        self.assertEqual(expected_topic, f"meshtastic-testbed/{_KNOWN_NODE_LABEL}/device")
 
     def test_missing_battery_level_omitted_not_zero(self):
         """Device packet without batteryLevel must NOT have battery_level key."""
@@ -312,7 +312,7 @@ class TestPositionTelemetry(unittest.TestCase):
         self.receiver._on_receive(_position_packet(), interface=None)
         label, _ = self.fake.position_calls[0]
         expected_topic = MQTTConnector.TOPIC_POSITION.format(node_label=label)
-        self.assertEqual(expected_topic, f"lora-testbed/{_KNOWN_NODE_LABEL}/position")
+        self.assertEqual(expected_topic, f"meshtastic-testbed/{_KNOWN_NODE_LABEL}/position")
 
     def test_missing_altitude_omitted_not_zero(self):
         """Position packet without altitude must NOT include an altitude key."""

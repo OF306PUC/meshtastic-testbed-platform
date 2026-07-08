@@ -66,7 +66,7 @@ supports custom firmware to extend sensor coverage and fix known hardware-layer 
 
 ### Firmware / radio layer
 - Meshtastic firmware (v2.7.19) on all devices.
-- Channel: `TB CPS-RTC`; region: `ANZ`; modem preset: `LONG_FAST`.
+- Channel: `CPS_RTC`; region: `ANZ`; modem preset: `LONG_FAST`.
 - Nodes use `LOCAL_ONLY` rebroadcast mode to isolate the mesh.
 - PSK is a shared base64 key stored in `.env` (read at runtime by `src/common/radio_config.py`).
 
@@ -87,8 +87,8 @@ supports custom firmware to extend sensor coverage and fix known hardware-layer 
                           monitor/  (Flask + SocketIO dashboard, in-repo, port 5000)
 ```
 
-MQTT topics: `lora-testbed/<node-label>/device` and `lora-testbed/<node-label>/environment`.
-InfluxDB database: `cpsrtc_lora_telemetry`, measurement: `mqtt_consumer`.
+MQTT topics: `meshtastic-testbed/<node-label>/device` and `meshtastic-testbed/<node-label>/environment`.
+InfluxDB database: `cpsrtc_meshtastic_telemetry`, measurement: `mqtt_consumer`.
 
 ---
 
@@ -131,7 +131,7 @@ InfluxDB database: `cpsrtc_lora_telemetry`, measurement: `mqtt_consumer`.
 ## Directory structure
 
 ```
-LoRa-TestBed-Platform/
+meshtastic-testbed-platform/
 ├── src/
 │   ├── common/
 │   │   ├── radio_config.py           # Channel/region/preset/PSK (reads .env)

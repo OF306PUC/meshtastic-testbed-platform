@@ -47,7 +47,7 @@ The realtime dashboard is part of this repo at **`monitor/`** (Flask + SocketIO,
 ## Repository Structure
 
 ```
-LoRa-TestBed-Platform/
+meshtastic-testbed-platform/
 │
 ├── src/
 │   ├── common/
@@ -123,7 +123,7 @@ Sensitive values are kept out of version control in two gitignored env files:
 
 Single source of truth for all LoRa radio parameters shared between gateway and node scripts:
 
-- **Channel settings** — channel index, name (`TB CPS-RTC`), and PSK (loaded from `.env`)
+- **Channel settings** — channel index, name (`CPS_RTC`), and PSK (loaded from `.env`)
 - **LoRa radio settings** — region (`ANZ`) and modem preset (`LONG_FAST`)
 
 ### `src/node/configure_params.py` — Sensor Node Parameters
@@ -209,8 +209,8 @@ Defines each node's hardware ID, `device_role`, and `hop_limit`. Referenced at r
 ### Installation
 
 ```bash
-git clone https://github.com/OF306PUC/LoRa-TestBed-Platform.git
-cd LoRa-TestBed-Platform
+git clone https://github.com/OF306PUC/meshtastic-testbed-platform.git
+cd meshtastic-testbed-platform
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -297,8 +297,8 @@ Expected output:
 NAME                       IMAGE                          STATUS
 telegraf                   telegraf:1.32-alpine           Up
 influxdb                   influxdb:1.11-alpine           Up
-lora-testbed-mqtt-broker   eclipse-mosquitto:2.0          Up
-lora-testbed-web           lora-testbed-platform-web      Up
+meshtastic-testbed-mqtt-broker   eclipse-mosquitto:2.0                Up
+meshtastic-testbed-web           meshtastic-testbed-platform-web      Up
 ```
 
 Useful commands:
@@ -313,7 +313,7 @@ docker compose down
 ### Stage 3 — Run the Gateway Receiver
 
 The receiver reads mesh telemetry over serial and publishes it to Mosquitto under
-`lora-testbed/<node-label>/{device,environment,position}`. Telegraf writes these to
+`meshtastic-testbed/<node-label>/{device,environment,position}`. Telegraf writes these to
 InfluxDB automatically. Choose **one** of the two ways to run it below — do not run both
 at once, since they would both try to open the same serial port.
 
@@ -361,7 +361,7 @@ Then run these queries inside the shell:
 SHOW DATABASES
 
 -- Select the testbed database
-USE cpsrtc_lora_telemetry
+USE cpsrtc_meshtastic_telemetry
 
 -- Confirm the measurement exists
 SHOW MEASUREMENTS
@@ -382,7 +382,7 @@ Exit the shell with `exit` or `Ctrl+D`.
 
 ## Web Monitor
 
-The realtime dashboard lives at `monitor/` and is a Flask + Flask-SocketIO application. It is included in the root `docker-compose.yaml` as the `web` service (container `lora-testbed-web`) and starts automatically with `docker compose up -d`.
+The realtime dashboard lives at `monitor/` and is a Flask + Flask-SocketIO application. It is included in the root `docker-compose.yaml` as the `web` service (container `meshtastic-testbed-web`) and starts automatically with `docker compose up -d`.
 
 Once the stack is running, open **http://localhost:5000** in a browser:
 

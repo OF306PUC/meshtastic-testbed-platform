@@ -57,7 +57,7 @@ Radio/link configuration: one row per node (the RF + Meshtastic channel settings
 | `bandwidth_kHz`        | number (derived from preset)                 | See Reference sheet |
 | `spreading_factor`     | integer 7–12 (derived from preset)           | See Reference sheet |
 | `coding_rate`          | `4/5`..`4/8` (derived from preset)           | See Reference sheet |
-| `channel_name`         | text (`TB CPS-RTC`)                          | |
+| `channel_name`         | text (`CPS_RTC`)                             | |
 | `hop_limit`            | integer                                      | From `mesh_config.json` |
 | `rebroadcast_mode`     | `LOCAL_ONLY` \| `ALL` \| `KNOWN_ONLY` \| `NONE` (CLIENT_MUTE ≈ no rebroadcast) | |
 | `tx_power_dBm`         | number                                       | |
@@ -69,10 +69,10 @@ Radio/link configuration: one row per node (the RF + Meshtastic channel settings
 
 | node_ref | region | modem_preset | bandwidth_kHz | spreading_factor | coding_rate | channel_name | hop_limit | rebroadcast_mode | tx_power_dBm | telemetry_interval_s | gps_update_s | notes |
 |----------|--------|--------------|---------------|------------------|-------------|--------------|-----------|------------------|--------------|----------------------|--------------|-------|
-| node-1   | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | TB CPS-RTC   | 3         | LOCAL_ONLY       | _TBD_        | 60                   | 300          | |
-| node-2   | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | TB CPS-RTC   | 3         | LOCAL_ONLY       | _TBD_        | 60                   | 300          | |
-| node-3   | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | TB CPS-RTC   | 2         | LOCAL_ONLY       | _TBD_        | 60                   | 300          | |
-| gw       | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | TB CPS-RTC   | —         | CLIENT_MUTE      | _TBD_        | —                    | —            | receive-only |
+| node-1   | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | CPS_RTC      | 3         | LOCAL_ONLY       | _TBD_        | 60                   | 300          | |
+| node-2   | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | CPS_RTC      | 3         | LOCAL_ONLY       | _TBD_        | 60                   | 300          | |
+| node-3   | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | CPS_RTC      | 2         | LOCAL_ONLY       | _TBD_        | 60                   | 300          | |
+| gw       | ANZ    | LONG_FAST    | 250           | 11               | 4/5         | CPS_RTC      | —         | CLIENT_MUTE      | _TBD_        | —                    | —            | receive-only |
 
 ---
 
