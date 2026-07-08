@@ -182,8 +182,8 @@ Defines each node's hardware ID, `device_role`, and `hop_limit`. Referenced at r
 ```json
 {
   "nodes_cfg": {
-    "1": {"id": "!0b64122b", "hop_limit": 3, "device_role": "CLIENT"},
-    "2": {"id": "!6c73ff1c", "hop_limit": 3, "device_role": "CLIENT"},
+    "1": {"id": "!0b64122b", "hop_limit": 2, "device_role": "CLIENT"},
+    "2": {"id": "!6c73ff1c", "hop_limit": 2, "device_role": "CLIENT"},
     "3": {"id": "!9d84gg2d", "hop_limit": 2, "device_role": "CLIENT"}
   }
 }

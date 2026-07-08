@@ -20,7 +20,7 @@ DEVICE_ROLE_CLIENT = "CLIENT"
 DEVICE_ROLE_SENSOR = "SENSOR"
 
 # Hop limit: must be (required_hops_to_gateway + 1)
-REQUIRED_HOPS_TO_GATEWAY = 2            # <-- set this per node (e.g., node1=2, node2=1, node3=1)
+REQUIRED_HOPS_TO_GATEWAY = 1            # <-- set this per node (e.g., node1=2, node2=1, node3=1)
 HOP_LIMIT = REQUIRED_HOPS_TO_GATEWAY + 1
 
 # GPS settings (optional)
