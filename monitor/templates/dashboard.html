@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+  .dash-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: #1c2b35;
+      border-bottom: 1px solid #2e4250;
+  }
+  .dash-header h2 { margin: 0; font-size: 18px; color: #4BC0C0; }
+  .dash-header .back { color: #aaa; text-decoration: none; font-size: 13px; }
+  .dash-header .back:hover { color: #4BC0C0; }
+  .dash-header .ws-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #555; margin-left: auto;
+      transition: background .4s;
+  }
+  .dash-header .ws-dot.live { background: #4BC0C0; }
+
+  .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: 1fr;
+      gap: 14px;
+      padding: 14px;
+      height: calc(100vh - 46px - 54px);
+      box-sizing: border-box;
+  }
+  /* 10 charts in a 3-col grid → 3+3+3+1 rows.
+     The 10th card (altitude) spans the full last row. */
+  .charts-grid .chart-card:nth-child(10) {
+      grid-column: 1 / -1;
+  }
+  .chart-card {
+      background: #1c2b35;
+      border-radius: 10px;
+      border: 1px solid #2e4250;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+  }
+  .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #9fc8d0;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+  }
+  .card-title .live-val {
+      font-size: 15px;
+      color: #4BC0C0;
+      font-weight: 700;
+  }
+  /* Timestamp legend row under the title */
+  .card-ts {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: #556a77;
+  }
+  .card-ts .ts-received { color: #4BC0C0cc; }
+
+  .chart-card canvas { width: 100% !important; flex: 1; min-height: 0; }
+
+  @keyframes valFlash {
+      0%   { color: #fff; }
+      100% { color: #4BC0C0; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-header">
+    <a href="/map" class="back">← Map</a>
+    <h2>Node: <span id="node-label">{{ node_id }}</span></h2>
+    <div class="ws-dot" id="ws-dot" title="WebSocket status"></div>
+</div>
+
+<div class="charts-grid" id="charts-grid"></div>
+
+<script>
+(function () {
+    "use strict";
+
+    const NODE_ID = {{ node_id | tojson }};
+
+    // ── Field metadata (no GPS fields) ───────────────────────────────
+    const FIELDS = [
+        // Environment
+        { key: "temperature",    label: "Temperature",  unit: "°C", color: "#e07b54" },
+        { key: "humidity",       label: "Humidity",     unit: "%",  color: "#54aee0" },
+        // Device
+        { key: "battery_level",  label: "Battery",      unit: "%",  color: "#e0d454" },
+        { key: "voltage",        label: "Voltage",      unit: "V",  color: "#e0a854" },
+        { key: "channel_util",   label: "Channel Util", unit: "%",  color: "#a054e0" },
+        { key: "air_util_tx",    label: "Air Util TX",  unit: "%",  color: "#e054c8" },
+        { key: "uptime_seconds", label: "Uptime",       unit: "s",  color: "#54c8e0" },
+        // Position (fixed installations — flat line confirms node is reporting)
+        { key: "rssi",           label: "RSSI Rx Message",   unit: "dBm",  color: "#7be07b" },
+        { key: "snr",            label: "SNR Rx Message" ,   unit: "dBm",  color: "#7be0b8" },
+        { key: "hop",            label: "Hops Rx Message",   unit: "",     color: "#b8e07b" },
+    ];
+
+    // topic suffix → which fields it carries
+    const TOPIC_FIELDS = {
+        environment: ["temperature", "humidity"],
+        rx_metrics:  ["rssi", "snr", "hop"],
+        device:      ["battery_level", "voltage", "channel_util", "air_util_tx", "uptime_seconds"],
+    };
+
+    const MAX_POINTS = 120;
+
+    // ── State ────────────────────────────────────────────────────────
+    const charts   = {};   // key → Chart instance
+    const liveVals = {};   // key → value span
+    const tsEls    = {};   // key → { sent, received, latency } span refs
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function fmtTime(d) {
+        // d is a Date or ms-since-epoch number
+        return new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function fmtVal(key, v) {
+        if (v === null || v === undefined) return "—";
+        if (key === "uptime_seconds") {
+            const h = Math.floor(v / 3600), m = Math.floor((v % 3600) / 60);
+            return `${h}h ${m}m`;
+        }
+        return typeof v === "number" ? v.toFixed(3) : String(v);
+    }
+
+    // ── Chart factory ────────────────────────────────────────────────
+    function createChart(field) {
+        const { key, label, unit, color } = field;
+        const grid = document.getElementById("charts-grid");
+
+        const card = document.createElement("div");
+        card.className = "chart-card";
+        card.innerHTML = `
+            <div class="card-title">
+                <span>${label} <small style="color:#445">(${unit})</small></span>
+                <span class="live-val" id="live-${key}">—</span>
+            </div>
+                <div class="card-ts">
+                    <span class="ts-received">Received: <span id="ts-recv-${key}">—</span></span>
+                </div>
+            <canvas id="canvas-${key}"></canvas>`;
+        grid.appendChild(card);
+
+        liveVals[key] = document.getElementById(`live-${key}`);
+        tsEls[key] = {
+            recv: document.getElementById(`ts-recv-${key}`),
+        };
+
+        const ctx = document.getElementById(`canvas-${key}`).getContext("2d");
+
+        const commonOpts = {
+            borderWidth: 1.8,
+            pointRadius: 1.0,
+            fill: true,
+            tension: 0.3,
+        };
+
+        charts[key] = new Chart(ctx, {
+            type: "line",
+            data: {
+                datasets: [
+                    {
+                        label: `${label} (${unit})`,
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: color + "18",
+                        borderWidth: 1.8,
+                        pointRadius: 1.0,
+                        fill: true,
+                        tension: 0.3,
+                    },
+                ]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                scales: {
+                    x: {
+                        type: "time",
+                        time: {
+                            tooltipFormat: "HH:mm:ss",
+                            displayFormats: { second: "HH:mm:ss", minute: "HH:mm" },
+                        },
+                        ticks: { color: "#7a9aaa", maxTicksLimit: 6, maxRotation: 0 },
+                        grid:  { color: "#1e3040" },
+                        title: { display: true, text: "Time", color: "#445a66", font: { size: 10 } },
+                    },
+                    y: {
+                        ticks: { color: "#7a9aaa" },
+                        grid:  { color: "#1e3040" },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: "#7a9aaa",
+                            font: { size: 11 },
+                            boxWidth: 20,
+                            usePointStyle: true,
+                        }
+                    },
+                    tooltip: {
+                        titleColor: "#ccc",
+                        bodyColor: "#eee",
+                    },
+                }
+            }
+        });
+    }
+
+    // ── Push a new point onto both datasets ──────────────────────────
+    function pushPoint(key, value, receivedAt) {
+        const chart = charts[key];
+        if (!chart) return;
+
+        const ds = chart.data.datasets[0];
+        ds.data.push({ x: new Date(receivedAt * 1000), y: value });
+        if (ds.data.length > MAX_POINTS) ds.data.shift();
+        chart.update("none");
+
+        const el = liveVals[key];
+        if (el) {
+            el.textContent = fmtVal(key, value);
+            el.style.animation = "none";
+            void el.offsetWidth;
+            el.style.animation = "valFlash .5s ease-out";
+        }
+
+        const ts = tsEls[key];
+        if (ts) ts.recv.textContent = fmtTime(receivedAt * 1000);
+    }
+
+    // ── Seed charts from historical data ─────────────────────────────
+    async function seedChart(key) {
+        try {
+            const r = await fetch(`/api/recent/${encodeURIComponent(NODE_ID)}/${key}?limit=${MAX_POINTS}`);
+            if (!r.ok) return;
+            const rows = await r.json();
+            if (!rows.length) return;
+
+            const ds = charts[key].data.datasets[0];
+            ds.data = rows.map(row => ({
+                x: Date.parse(row.time),
+                y: row[key],
+            }));
+            charts[key].update("none");
+
+            const last = rows[rows.length - 1];
+            const el = liveVals[key];
+            if (el) el.textContent = fmtVal(key, last[key]);
+            const ts = tsEls[key];
+            if (ts) ts.recv.textContent = fmtTime(Date.parse(last.time));
+        } catch(e) {
+            console.warn(`[seed] ${key}:`, e);
+        }
+    }
+
+    // ── Socket.IO ────────────────────────────────────────────────────
+    const socket = io({ transports: ["websocket", "polling"] });
+    const dot    = document.getElementById("ws-dot");
+
+    socket.on("connect",    () => dot.classList.add("live"));
+    socket.on("disconnect", () => dot.classList.remove("live"));
+
+    socket.on("mqtt_message", (payload) => {
+        if (payload.node_id !== NODE_ID) return;
+
+        const msgType  = payload._type;
+        const fields   = TOPIC_FIELDS[msgType] || [];
+
+        const receivedAt = payload.received_at;
+        if (!receivedAt) return;
+
+        fields.forEach(key => {
+            if (payload[key] !== undefined && payload[key] !== null) {
+                pushPoint(key, payload[key], receivedAt);
+            }
+        });
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────
+    FIELDS.forEach(f => createChart(f));
+    FIELDS.forEach(f => seedChart(f.key));
+})();
+</script>
+{% endblock %}

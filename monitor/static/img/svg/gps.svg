@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xml:space="preserve"
+   version="1.1"
+   style="image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+   viewBox="0 0 156 209"
+   x="0px"
+   y="0px"
+   fill-rule="evenodd"
+   clip-rule="evenodd"
+   id="svg16"
+   width="156"
+   height="209"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs4"><style
+       type="text/css"
+       id="style2">
+   
+    .fil0 {fill:black}
+   
+  </style></defs><g
+     id="g10"><path
+       class="fil0"
+       d="m 78,0 c 43,0 78,35 78,78 0,40 -54,98 -78,131 C 54,176 0,118 0,78 0,35 35,0 78,0 Z m 0,30 c 26,0 48,22 48,48 0,26 -22,48 -48,48 C 52,126 30,104 30,78 30,52 52,30 78,30 Z"
+       id="path8" /></g></svg>

@@ -1,0 +1,68 @@
+services:
+  telegraf:
+    image: telegraf:1.32-alpine
+    container_name: telegraf
+    restart: unless-stopped
+    env_file: configuration.env
+    volumes:
+      - ./telegraf/etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - influxdb
+      - mosquitto
+    networks:
+      - telegraf_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  influxdb:
+    image: influxdb:1.11-alpine
+    container_name: influxdb
+    restart: unless-stopped
+    env_file: configuration.env
+    ports:
+      - '8086:8086'
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    networks:
+      - telegraf_network
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: lora-testbed-mqtt-broker
+    restart: unless-stopped
+    volumes:
+      - ./mqtt:/mosquitto/config
+      - ./data:/mosquitto/data
+      - ./log:/mosquitto/log
+    ports:
+      - 1883:1883
+      - 9002:9001
+    networks:
+      - telegraf_network
+
+  web:
+    build: ./monitor
+    container_name: lora-testbed-web
+    restart: unless-stopped
+    env_file: configuration.env          # DB_USERNAME / DB_PASSWORD
+    environment:
+      - DB_HOST=influxdb                  # reach InfluxDB by service name
+      - DB_PORT=8086
+      - DB_NAME=cpsrtc_lora_telemetry
+      - BROKER_ADDRESS=mosquitto          # reach Mosquitto by service name
+      - BROKER_PORT=1883
+      - CLIENT_ID=lora-testbed-monitor
+      - SUBSCRIBE_TOPIC=lora-testbed/+/+
+    ports:
+      - "5000:5000"
+    depends_on:
+      - influxdb
+      - mosquitto
+    networks:
+      - telegraf_network
+
+volumes:
+  influxdb_data: {}
+
+networks:
+  telegraf_network: {}

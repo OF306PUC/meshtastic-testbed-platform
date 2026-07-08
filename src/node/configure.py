@@ -1,0 +1,82 @@
+import sys
+import json
+import argparse
+from pathlib import Path
+
+# Make the `src/` package root importable when run directly.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from common.meshtastic_cli import run  # noqa: E402
+from node import configure_params as node_params  # noqa: E402
+
+# Resolve relative to repo root (this file lives at <root>/src/node/configure.py),
+# so it works regardless of the current working directory.
+MESH_CONFIG_PATH = str(Path(__file__).resolve().parents[2] / "mesh_config.json")
+
+
+def load_config(node_id):
+    with open(MESH_CONFIG_PATH, "r") as f:
+        data = json.load(f)
+    
+    nodes = data["nodes_cfg"]
+    if node_id not in nodes: 
+        raise ValueError(f"Node ID {node_id} not found in {MESH_CONFIG_PATH}")
+    return nodes[node_id]
+
+def main():
+    parser = argparse.ArgumentParser(description="Configure a LoRa mesh node using meshtastic CLI")
+    parser.add_argument("--node-id", type=str, required=True, help="ID of the node to configure (e.g., '1', '2', etc.)")
+    parser.add_argument("--port", type=str, default=None, help="Serial port of the device (e.g., '/dev/ttyUSB0')")
+
+    args = parser.parse_args()
+    node_id = args.node_id
+    port_flag = f"--port {args.port}" if args.port else ""
+    node_cfg = load_config(node_id)
+    hop_limit = node_cfg["hop_limit"]
+    device_role = node_cfg["device_role"]
+
+    print("Starting node configuration using meshtastic CLI...")
+
+    # LoRa config: region, preset, hop limit
+    run(
+        f"meshtastic {port_flag} --set lora.region {node_params.LORA_REGION}"
+        f" --set lora.modem_preset {node_params.LORA_PRESET}"
+        f" --set lora.hop_limit {hop_limit}"
+    )
+
+    # Device config: rebroadcast mode and role (role varies by node position)
+    run(
+        f"meshtastic {port_flag} --set device.rebroadcast_mode {node_params.REBROADCAST_MODE}"
+        f" --set device.role {device_role}"
+    )
+
+    # Channel config (this may trigger radio re-init)
+    run(
+        f'meshtastic {port_flag} --ch-set name "{node_params.CHANNEL_NAME}" '
+        f'--ch-set psk {node_params.CHANNEL_PSK_B64} '
+        f'--ch-index {node_params.CHANNEL_IDX}'
+    )
+
+    # Telemetry config
+    DEV_MEAS = str(node_params.TELEMETRY_DEV_MEAS_ENABLED).lower()
+    ENV_MEAS = str(node_params.TELEMETRY_ENV_MEAS_ENABLED).lower()
+    run(
+        f"meshtastic {port_flag} --set telemetry.device_telemetry_enabled {DEV_MEAS}"
+        f" --set telemetry.environment_measurement_enabled {ENV_MEAS}"
+        f" --set telemetry.device_update_interval {node_params.TELEMETRY_DEV_UPDATE_INTERVAL}"
+        f" --set telemetry.environment_update_interval {node_params.TELEMETRY_ENV_UPDATE_INTERVAL}"
+    )
+
+    # GPS config
+    run(
+        f"meshtastic {port_flag} --set position.gps_mode {node_params.GPS_MODE}"
+        f" --set position.gps_update_interval {node_params.GPS_UPDATE_INTERNAL_INTERVAL}"
+        f" --set position.position_broadcast_secs {node_params.GPS_UPDATE_BROADCAST_INTERVAL}"
+    )
+
+    # Reboot to apply changes
+    run(f"meshtastic {port_flag} --reboot")
+
+
+if __name__ == "__main__":
+    main()
