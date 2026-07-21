@@ -20,6 +20,99 @@ Entry format:
 
 ---
 
+## 2026-07-15 — Integración de las configuraciones del proxy BLE
+**Time:** (aprox)
+**User request:** "Incluir las configuraciones del proxy" (con preguntas de
+clarificación). Respuestas del owner: integrar `src/proxy/` al esquema común
+(`radio_config.py`), registrarlo en `mesh_config.json`, completar `.env.example`;
+canales = CPS_RTC + PUC_NET compartidos; PSKs desde `.env`; arreglar de paso los
+imports rotos de node/gateway. El proxy es el diseñado en `../meshtastic-ble-proxy`
+(firmware nRF52840 que multiplexa 6 teléfonos BLE sobre un nodo Meshtastic vía
+UART). Hay **dos pares nordic-lilygo** → entradas `p1` y `p2`.
+### Actions taken
+- `src/proxy/configure_params.py` reescrito al patrón node/gateway: importa de
+  `common/radio_config.py` (CPS_RTC idx 0 + PUC_NET idx 1, región/preset/
+  rebroadcast); conserva lo específico del nodo-proxy (BT off, serial PROTO
+  GPIO15/35 @115200, telemetría 900 s, GPS 1800 s, rol CLIENT, hop 2+1).
+  Eliminados `EasterNet`/`NUM_CHANNELS=8` (venían de otra red).
+- `src/proxy/configure.py`: fix import roto (`param_node` → `configure_params`),
+  eliminado el mecanismo `channel_psks.txt` (generación local de 8 llaves);
+  ahora configura exactamente 2 canales con PSKs del `.env` (decodifica
+  `base64:` y escribe bytes vía API Python — se conserva el workaround del bug
+  str/bytes del CLI). Falla temprano (exit 2) si falta `LORA_MSG_CHANNEL_PSK`.
+- `src/proxy/__init__.py` creado (paquete importable como node/gateway).
+- Imports rotos por el rename de `radio_config.py` arreglados:
+  `src/node/configure_params.py` + `configure.py`,
+  `src/gateway/configure_params.py` + `configure.py` → `CHANNEL_TELEMETRY_*`.
+  `node/configure_params.py` ahora también importa `REBROADCAST_MODE` de common
+  (antes duplicado local).
+- `mesh_config.json`: entradas `p1`/`p2` (nodos lilygo de los dos proxies) con
+  id placeholder `!CHANGE_ME_P1/P2`, hop_limit 3, rol CLIENT.
+- `.env.example`: renombrado documentado + agregado `LORA_MSG_CHANNEL_PSK`.
+- Verificación: `py_compile` OK en los 8 archivos; smoke test de imports OK
+  (CPS_RTC/PUC_NET/LONG_TURBO consistentes entre node/gateway/proxy);
+  `tests/test_load_nodes.py` 10/10 OK con las entradas nuevas.
+### Decisions
+- Proxy usa los mismos 2 canales compartidos y PSKs desde `.env` (fuente única);
+  `channel_psks.txt` descartado.
+- `fetch_node_config.py` (herramienta de medición del config burst para
+  CONFIG_CACHE_ARENA_BYTES del firmware) se deja tal cual — es standalone.
+- **PUC_NET es mesh-wide** (decisión del owner, 2ª iteración): nodos 1–3 y
+  gateway también configuran el canal 1, para que `LOCAL_ONLY` retransmita los
+  mensajes de los teléfonos a través de la malla. `node/configure.py` y
+  `gateway/configure.py` agregan `--ch-add PUC_NET` + PSK (idx 1) y fallan
+  temprano si falta `LORA_MSG_CHANNEL_PSK`.
+- **Hop limits por proxy** (owner): p1 = 1 (el owner dijo "0 ó 1"; se eligió 1 —
+  llega directo igual y tolera un relevo), p2 = 3. Como difieren,
+  `proxy/configure.py` ahora recibe `--node-id p1|p2` y lee
+  `hop_limit`/`device_role` desde `mesh_config.json` (mismo patrón que
+  `node/configure.py`); se quitaron HOP_LIMIT/DEVICE_ROLE de los params del proxy.
+### Outcomes
+- `src/proxy/` integrado al esquema común; PUC_NET configurado mesh-wide; todo
+  el árbol compila e importa (smoke test OK, test_load_nodes 10/10).
+  Nada commiteado (protocolo: espera aprobación de git-lead).
+### Next steps / open questions
+- Owner: reemplazar `!CHANGE_ME_P1/P2` en `mesh_config.json` con los node ids
+  reales de los lilygo cuando estén conectados.
+- Owner: generar y setear `LORA_MSG_CHANNEL_PSK` en `.env`; luego re-correr
+  `configure.py` en nodos 1–3 + gateway (nuevo canal 1) y en p1/p2
+  (`--node-id p1 --port ...`).
+- Git checkpoint pendiente: ADR-0001 + este trabajo del proxy sin commitear.
+
+## 2026-07-10 — /start reconciliation + ADR-0001 (canopy sensor I2C link)
+**Time:** (aprox)
+**User request:** `/start`; luego consulta de ingeniería sobre el sensor SHT4X que
+debe ir dentro del dosel de la vid mientras el nodo solar queda 1-3 m por encima —
+duda sobre si I2C es adecuado para ese tramo. Pidió (b) abrir un ADR, con el
+requisito duro de no tocar el firmware.
+### Actions taken
+- `/start` briefing: verificado que el rename de namespace YA está commiteado
+  (`fae668d`), árbol limpio. `active.md` estaba desactualizado (decía "NOT
+  committed") → reconciliado.
+- Consulta de ingeniería: explicado por qué I2C no sobrevive 1-3 m (presupuesto de
+  capacitancia de bus = 400 pF; cable ~50-100 pF/m + Grove Hub lo revienta → ACK de
+  1 bit pasa pero la lectura multi-byte falla, mismo síntoma ya documentado).
+- Creado **ADR-0001** (`docs/architecture/ADR-0001-canopy-sensor-i2c-link.md`).
+- Reconciliado `.claude/production/session-state/active.md` (rename commiteado, árbol
+  limpio, `execution/` eliminado, pendientes reorganizados) y agregada esta entrada.
+### Decisions
+- **ADR-0001 = extensor I2C diferencial** (par PCA9615 / fallback P82B96): mantiene el
+  SHT4X como esclavo I2C transparente en `0x44`, así el módulo Environmental Telemetry
+  de Meshtastic lo lee **sin tocar firmware** (requisito duro del owner). Cable twisted
+  pair (Cat5/6) con SDA±/SCL± + 3.3 V + GND; quitar el Grove I2C Hub; bus a 100 kHz.
+- Rechazadas: I2C crudo/lento (frágil), MCU satélite (rompe la transparencia de
+  firmware; electrónica alimentada en la sombra), RS-485/SDI-12 (no lo lee Meshtastic
+  nativamente → firmware custom, diferido a Phase 2/3).
+### Outcomes
+- ADR-0001 en su lugar (primer ADR del repo). `active.md` y `session-log` al día.
+  Nada commiteado esta sesión (posture working-tree hasta que el owner apruebe git-lead).
+### Next steps / open questions
+- doc-keeper: referenciar ADR-0001 desde project-overview.md § Known constraints.
+- Owner: conseguir breakouts PCA9615/P82B96; confirmar pinout I2C del Grove del P1 Pro;
+  bench-test al largo de cable objetivo antes del despliegue.
+- Pendientes de fondo sin cambios: Dependabot (2 high, 2 moderate), node-label mismatch,
+  license, scalability + power, RPi+5G.
+
 ## 2026-07-08 — Namespace rename: channel + `lora-testbed` → `meshtastic-testbed`
 **Time:** (aprox)
 **User request:** `/start`; luego cerrar el cambio sin commitear en `radio_config.py` (rename de canal, sin commitear); y renombrar todo el namespace `lora-testbed` → `meshtastic-testbed` (incluida la DB InfluxDB).
