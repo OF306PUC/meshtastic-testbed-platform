@@ -29,14 +29,18 @@ def _load_dotenv(path: Path) -> None:
 _load_dotenv(_REPO_ROOT / ".env")
 
 # ── Shared, non-secret radio settings (node and gateway must match) ───────────
-CHANNEL_IDX  = 0
-CHANNEL_NAME = "CPS_RTC"
+CHANNEL_TELEMETRY_IDX  = 0
+CHANNEL_TELEMETRY_NAME = "CPS_RTC"
+CHANNEL_MSG_IDX = 1
+CHANNEL_MSG_NAME = "PUC_NET"
 LORA_REGION  = "ANZ"
-LORA_PRESET  = "LONG_FAST"
+LORA_PRESET  = "LONG_TURBO"
+REBROADCAST_MODE = "LOCAL_ONLY"
 
 # ── Shared secret: channel PSK (base64). From env; never commit the real value. ──
-CHANNEL_PSK_B64 = os.environ.get("LORA_CHANNEL_PSK")
-if not CHANNEL_PSK_B64:
+CHANNEL_TELEMETRY_PSK_B64 = os.environ.get("LORA_TELEMETRY_CHANNEL_PSK")
+CHANNEL_MSG_PSK_B64 = os.environ.get("LORA_MSG_CHANNEL_PSK")
+if not CHANNEL_TELEMETRY_PSK_B64:
     raise RuntimeError(
         "LORA_CHANNEL_PSK is not set. Copy .env.example to .env and set the "
         "channel PSK (the base64 key shared by every node and the gateway)."

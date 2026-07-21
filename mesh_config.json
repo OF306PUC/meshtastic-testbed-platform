@@ -1,7 +1,9 @@
 {
     "nodes_cfg": {
-        "1": {"id": "!0b64122b", "hop_limit": 3, "device_role": "CLIENT"},
-        "2": {"id": "!7c70da02", "hop_limit": 3, "device_role": "CLIENT"},
-        "3": {"id": "!32fe0d4e", "hop_limit": 2, "device_role": "CLIENT"}
-    } 
+        "1": {"id": "!0b64122b", "hop_limit": 2, "device_role": "CLIENT_BASE"},
+        "2": {"id": "!7c70da02", "hop_limit": 2, "device_role": "CLIENT"},
+        "3": {"id": "!32fe0d4e", "hop_limit": 2, "device_role": "CLIENT"},
+        "p1": {"id": "!CHANGE_ME_P1", "hop_limit": 0, "device_role": "CLIENT"},
+        "p2": {"id": "!CHANGE_ME_P2", "hop_limit": 3, "device_role": "CLIENT"}
+    }
 }

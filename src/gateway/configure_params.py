@@ -3,7 +3,9 @@
 # Shared, mesh-wide radio settings (channel, region, preset, PSK) live in
 # common/radio_config.py so node and gateway can never drift apart.
 from common.radio_config import (
-    CHANNEL_IDX, CHANNEL_NAME, CHANNEL_PSK_B64, LORA_REGION, LORA_PRESET,
+    CHANNEL_TELEMETRY_IDX, CHANNEL_TELEMETRY_NAME, CHANNEL_TELEMETRY_PSK_B64,
+    CHANNEL_MSG_IDX, CHANNEL_MSG_NAME, CHANNEL_MSG_PSK_B64,
+    LORA_REGION, LORA_PRESET,
 )
 
 # ── Gateway-specific settings (receive-only data sink) ────────────────────────

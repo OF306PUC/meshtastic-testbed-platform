@@ -16,6 +16,14 @@ def main():
     args = parser.parse_args()
     port_flag = f"--port {args.port}" if args.port else ""
 
+    # radio_config only enforces the telemetry PSK; the messaging channel is
+    # now mesh-wide too, so fail early if its key is missing.
+    if not node_params.CHANNEL_MSG_PSK_B64:
+        sys.exit(
+            "ERROR: LORA_MSG_CHANNEL_PSK is not set. Copy .env.example to .env "
+            "and set the messaging-channel PSK (shared mesh-wide)."
+        )
+
     print("Starting node configuration using meshtastic CLI...")
 
     # LoRa config: region, preset, and device role
@@ -27,9 +35,19 @@ def main():
 
     # Channel config (this may trigger radio re-init)
     run(
-        f'meshtastic {port_flag} --ch-set name "{node_params.CHANNEL_NAME}" '
-        f'--ch-set psk {node_params.CHANNEL_PSK_B64} '
-        f'--ch-index {node_params.CHANNEL_IDX}'
+        f'meshtastic {port_flag} --ch-set name "{node_params.CHANNEL_TELEMETRY_NAME}" '
+        f'--ch-set psk {node_params.CHANNEL_TELEMETRY_PSK_B64} '
+        f'--ch-index {node_params.CHANNEL_TELEMETRY_IDX}'
+    )
+
+    # Messaging channel (index 1): the gateway is CLIENT_MUTE (never relays)
+    # but still needs PUC_NET configured to decode phone messages arriving
+    # from the BLE proxies. Re-running --ch-add on an existing channel just
+    # logs an error and continues.
+    run(f'meshtastic {port_flag} --ch-add "{node_params.CHANNEL_MSG_NAME}"')
+    run(
+        f'meshtastic {port_flag} --ch-set psk {node_params.CHANNEL_MSG_PSK_B64} '
+        f'--ch-index {node_params.CHANNEL_MSG_IDX}'
     )
 
     # Telemetry and GPS config
