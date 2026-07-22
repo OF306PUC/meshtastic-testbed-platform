@@ -30,18 +30,31 @@ _load_dotenv(_REPO_ROOT / ".env")
 
 # ── Shared, non-secret radio settings (node and gateway must match) ───────────
 CHANNEL_TELEMETRY_IDX  = 0
-CHANNEL_TELEMETRY_NAME = "CPS_RTC"
+CHANNEL_TELEMETRY_NAME = "telCPS_RTC"
 CHANNEL_MSG_IDX = 1
-CHANNEL_MSG_NAME = "PUC_NET"
+CHANNEL_MSG_NAME = "msgPUC_NET"
 LORA_REGION  = "ANZ"
-LORA_PRESET  = "LONG_TURBO"
+LORA_PRESET  = "LONG_TURBO" # Ideally: "MEDIUM_FAST"
 REBROADCAST_MODE = "LOCAL_ONLY"
+
+# SX126x RX Boosted Gain: trades a little extra power for higher RX
+# sensitivity. Only the SX126x radio series honours it — the LilyGO T-Beam
+# uses an SX127x, so the field is stored but ignored there (harmless no-op).
+SX126X_RX_BOOSTED_GAIN = True
 
 # ── Shared secret: channel PSK (base64). From env; never commit the real value. ──
 CHANNEL_TELEMETRY_PSK_B64 = os.environ.get("LORA_TELEMETRY_CHANNEL_PSK")
 CHANNEL_MSG_PSK_B64 = os.environ.get("LORA_MSG_CHANNEL_PSK")
-if not CHANNEL_TELEMETRY_PSK_B64:
+_missing = [
+    name
+    for name, value in (
+        ("LORA_TELEMETRY_CHANNEL_PSK", CHANNEL_TELEMETRY_PSK_B64),
+        ("LORA_MSG_CHANNEL_PSK", CHANNEL_MSG_PSK_B64),
+    )
+    if not value
+]
+if _missing:
     raise RuntimeError(
-        "LORA_CHANNEL_PSK is not set. Copy .env.example to .env and set the "
-        "channel PSK (the base64 key shared by every node and the gateway)."
+        f"Channel PSK(s) not set: {', '.join(_missing)}. Copy .env.example to "
+        ".env and set both base64 keys (shared by every node and the gateway)."
     )

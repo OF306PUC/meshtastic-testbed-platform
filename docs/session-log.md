@@ -20,6 +20,60 @@ Entry format:
 
 ---
 
+## 2026-07-21 — Git checkpoint — ADR-0001 + BLE-proxy integration committed
+**Time:** (aprox)
+**User request:** Ran `/start`; producer + doc-keeper synthesized a briefing
+(doc-keeper flagged `project-overview.md` as needing an update — ADR-0001 and
+the proxy integration both unreflected). Owner chose "git checkpoint" as this
+session's task over the doc update or continuing hardware setup.
+### Actions taken
+- git-lead analyzed the working tree (2 independent uncommitted work packages
+  sitting since 2026-07-10 and 2026-07-15) and proposed a 2-commit strategy,
+  staying on `main` (repo's established direct-to-main convention, no CI/CD or
+  PR workflow present).
+- Owner approved the strategy as proposed via AskUserQuestion.
+- git-lead executed exactly 2 commits (no `git add -A`, explicit file lists):
+  - `3795e08` — `docs(architecture): add ADR-0001 for canopy sensor I2C link`
+    — files: `docs/architecture/ADR-0001-canopy-sensor-i2c-link.md` (new) +
+    `docs/session-log.md` (whole file, both the 07-10 and 07-15 entries riding
+    together since they couldn't be cleanly split via `git add -p` — no
+    unchanged line between the two appended blocks).
+  - `7dbe451` — `feat(proxy): integrate BLE-proxy config into common
+    radio_config schema` — files: `src/proxy/{__init__,configure,
+    configure_params,fetch_node_config}.py` (new) + `src/common/radio_config.py`,
+    `src/gateway/{configure,configure_params}.py`,
+    `src/node/{configure,configure_params}.py`, `mesh_config.json`,
+    `.env.example`.
+- Working tree confirmed clean after both commits; branch is 2 commits ahead
+  of `origin/main` (not pushed — no push/PR was part of the approved plan).
+### Decisions
+- Stayed on `main` for both commits rather than branching, matching the
+  repo's all-direct-to-main history (4 prior commits all on main, no PR
+  workflow exists).
+- `docs/session-log.md`'s modifications went wholesale into Commit 1 (paired
+  with the other pure-docs change) rather than split — the two dated entries
+  had no clean hunk boundary.
+- No push, no PR, no release tag — none were recommended (no PR workflow in
+  this repo; neither change is release-triggering).
+### Outcomes
+- Both work packages committed; working tree clean; 2 commits ahead of
+  `origin/main` awaiting a future push decision.
+### Next steps / open questions
+- Owner: decide when to push `3795e08`/`7dbe451` to `origin/main`.
+- Still pending (carried over, unchanged by this checkpoint):
+  `project-overview.md` still needs doc-keeper's update (ADR-0001 + proxy
+  integration unreflected) — flagged this session but not actioned, since
+  owner picked the git checkpoint path instead.
+- Still pending, hardware-dependent (owner): real node IDs for p1/p2 (replace
+  `!CHANGE_ME_P1/P2` in `mesh_config.json`), set `LORA_MSG_CHANNEL_PSK` in
+  `.env` (note: `.env` var also renamed `LORA_CHANNEL_PSK` →
+  `LORA_TELEMETRY_CHANNEL_PSK` in this commit — any live `.env` needs updating
+  before next `configure.py` run), then re-run `configure.py` on nodes 1-3 +
+  gateway (new channel 1) and on p1/p2.
+- Backlog unchanged: Dependabot alerts (2 high, 2 moderate) untriaged;
+  node-label mismatch (monitor/app.py vs mesh_config.json); license decision
+  pending; deferred scalability/power study + RPi+5G exploration.
+
 ## 2026-07-15 — Integración de las configuraciones del proxy BLE
 **Time:** (aprox)
 **User request:** "Incluir las configuraciones del proxy" (con preguntas de

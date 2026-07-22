@@ -3,12 +3,12 @@
 from common.radio_config import (
     CHANNEL_TELEMETRY_IDX, CHANNEL_TELEMETRY_NAME, CHANNEL_TELEMETRY_PSK_B64,
     CHANNEL_MSG_IDX, CHANNEL_MSG_NAME, CHANNEL_MSG_PSK_B64,
-    LORA_REGION, LORA_PRESET, REBROADCAST_MODE,
+    LORA_REGION, LORA_PRESET, REBROADCAST_MODE, SX126X_RX_BOOSTED_GAIN,
 )
 
 # ── Proxy-attached node settings ──────────────────────────────────────────────
 # This node hangs off the nRF52840 BLE proxy (../meshtastic-ble-proxy) over
-# UART: the proxy multiplexes up to 6 phones onto this single node, so the
+# UART: the proxy multiplexes up to n phones onto this single node, so the
 # node's own BLE is disabled and the Stream API is exposed on UART1 instead.
 
 # Bluetooth off: the BLE side is served by the proxy, not by this node.

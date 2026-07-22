@@ -39,3 +39,20 @@ def run(cmd, retries=MAX_RETRIES):
         else:
             print(f"Command failed after {retries} attempts. Continuing...")
             time.sleep(2)
+
+
+def get_config_value(argv_prefix, key):
+    """Read back a single config value via `meshtastic --get <key>`.
+
+    `argv_prefix` is the argv list up to --get, e.g. ['meshtastic', '--port', p]
+    (no shell, so ports/paths need no quoting). Returns the reported value as a
+    string, or '' if it couldn't be read. Used to verify a --set actually
+    persisted — e.g. device.rebroadcast_mode, which was silently not sticking
+    when set in the same command as device.role.
+    """
+    result = subprocess.run(argv_prefix + ["--get", key], capture_output=True, text=True)
+    for line in result.stdout.splitlines():
+        # The CLI prints lines like "device.rebroadcast_mode: LOCAL_ONLY".
+        if key in line and ":" in line:
+            return line.split(":", 1)[1].strip()
+    return ""

@@ -147,7 +147,7 @@ meshtastic-testbed-platform/
 │   │   ├── configure.py              # Node configuration script
 │   │   └── configure_params.py       # Node parameter constants
 │   └── tools/
-│       ├── check_node_info.py        # Serial node info inspector
+│       ├── check_node_info.py        # Node inspector + radio/mesh health-check
 │       └── plot_history.py           # InfluxDB telemetry plotter
 │
 ├── firmware/

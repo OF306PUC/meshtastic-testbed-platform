@@ -5,7 +5,7 @@
 from common.radio_config import (
     CHANNEL_TELEMETRY_IDX, CHANNEL_TELEMETRY_NAME, CHANNEL_TELEMETRY_PSK_B64,
     CHANNEL_MSG_IDX, CHANNEL_MSG_NAME, CHANNEL_MSG_PSK_B64,
-    LORA_REGION, LORA_PRESET,
+    LORA_REGION, LORA_PRESET, SX126X_RX_BOOSTED_GAIN,
 )
 
 # ── Gateway-specific settings (receive-only data sink) ────────────────────────

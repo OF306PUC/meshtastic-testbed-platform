@@ -26,10 +26,12 @@ def main():
 
     print("Starting node configuration using meshtastic CLI...")
 
-    # LoRa config: region, preset, and device role
+    # LoRa config: region, preset, and device role. sx126x_rx_boosted_gain is
+    # SX126x-only (stored but ignored on an SX127x T-Beam), set mesh-wide.
     run(
         f"meshtastic {port_flag} --set lora.region {node_params.LORA_REGION}"
         f" --set lora.modem_preset {node_params.LORA_PRESET}"
+        f" --set lora.sx126x_rx_boosted_gain {str(node_params.SX126X_RX_BOOSTED_GAIN).lower()}"
         f" --set device.role {node_params.DEVICE_ROLE}"
     )
 

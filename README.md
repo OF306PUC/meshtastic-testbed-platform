@@ -159,12 +159,14 @@ Listens for mesh telemetry over serial and publishes to Mosquitto. The `--port` 
 python src/gateway/receiver.py --port /dev/ttyACM0
 ```
 
-### `src/tools/check_node_info.py` — Node Inspection Utility
+### `src/tools/check_node_info.py` — Node & Mesh Inspector
 
-Connects to a node over serial and prints its current info. Useful for verifying connectivity and reading hardware IDs.
+Connects over serial (auto-detects the port) and, in one pass: prints the local node's info + telemetry, health-checks its radio settings/PSKs against `common/radio_config.py`, and dumps the heard mesh cross-checked against `mesh_config.json`. Exits non-zero on any drift/mismatch.
 
 ```bash
-python src/tools/check_node_info.py
+python src/tools/check_node_info.py                 # auto-detect port
+python src/tools/check_node_info.py --port /dev/ttyACM0
+python src/tools/check_node_info.py --no-mesh       # skip mesh dump
 ```
 
 ### `src/tools/plot_history.py` — Telemetry History Plot

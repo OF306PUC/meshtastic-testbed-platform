@@ -6,7 +6,7 @@ from pathlib import Path
 # Make the `src/` package root importable when run directly.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from common.meshtastic_cli import run  # noqa: E402
+from common.meshtastic_cli import run, get_config_value  # noqa: E402
 from node import configure_params as node_params  # noqa: E402
 
 # Resolve relative to repo root (this file lives at <root>/src/node/configure.py),
@@ -45,18 +45,31 @@ def main():
 
     print("Starting node configuration using meshtastic CLI...")
 
-    # LoRa config: region, preset, hop limit
+    # LoRa config: region, preset, hop limit. sx126x_rx_boosted_gain is
+    # honoured only by SX126x radios; on an SX127x T-Beam it is stored but
+    # ignored (harmless), so we set it mesh-wide from radio_config.
     run(
         f"meshtastic {port_flag} --set lora.region {node_params.LORA_REGION}"
         f" --set lora.modem_preset {node_params.LORA_PRESET}"
         f" --set lora.hop_limit {hop_limit}"
+        f" --set lora.sx126x_rx_boosted_gain {str(node_params.SX126X_RX_BOOSTED_GAIN).lower()}"
     )
 
-    # Device config: rebroadcast mode and role (role varies by node position)
+    # Device config: role then rebroadcast mode (role varies by node position),
+    # chained in ONE invocation so the CLI applies both in a single config
+    # write. Role is ordered first; rebroadcast is verified afterwards, so a
+    # dropped write (role reboots) is still caught by the check below.
     run(
-        f"meshtastic {port_flag} --set device.rebroadcast_mode {node_params.REBROADCAST_MODE}"
-        f" --set device.role {device_role}"
+        f"meshtastic {port_flag} --set device.role {device_role}"
+        f" --set device.rebroadcast_mode {node_params.REBROADCAST_MODE}"
     )
+    mesh_argv = ["meshtastic"] + (["--port", args.port] if args.port else [])
+    actual = get_config_value(mesh_argv, "device.rebroadcast_mode")
+    if node_params.REBROADCAST_MODE.lower() not in actual.lower():
+        print(f"WARNING: device.rebroadcast_mode did not persist "
+              f"(expected {node_params.REBROADCAST_MODE}, read '{actual or 'unknown'}').")
+    else:
+        print(f"Verified device.rebroadcast_mode = {node_params.REBROADCAST_MODE}")
 
     # Channel config (this may trigger radio re-init)
     run(

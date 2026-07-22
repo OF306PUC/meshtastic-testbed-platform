@@ -12,6 +12,7 @@ import meshtastic.serial_interface
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from proxy import configure_params as node_params  # noqa: E402
+from common.meshtastic_cli import get_config_value  # noqa: E402
 
 # Resolve relative to repo root (this file lives at <root>/src/proxy/configure.py),
 # so it works regardless of the current working directory.
@@ -122,18 +123,31 @@ def main() -> int:
 
     print(f"Starting proxy-node configuration of '{args.node_id}' on {args.port}...")
 
-    # LoRa config: region, preset, hop limit
+    # LoRa config: region, preset, hop limit. sx126x_rx_boosted_gain is
+    # honoured only by SX126x radios; on an SX127x T-Beam it is stored but
+    # ignored (harmless), so we set it mesh-wide from radio_config.
     step("LoRa (region/preset/hop_limit)", mesh + [
         "--set", "lora.region", node_params.LORA_REGION,
         "--set", "lora.modem_preset", node_params.LORA_PRESET,
         "--set", "lora.hop_limit", str(hop_limit),
+        "--set", "lora.sx126x_rx_boosted_gain", str(node_params.SX126X_RX_BOOSTED_GAIN).lower(),
     ])
 
-    # Device config: rebroadcast mode and role
-    step("device (rebroadcast/role)", mesh + [
-        "--set", "device.rebroadcast_mode", node_params.REBROADCAST_MODE,
+    # Device config: role then rebroadcast mode, chained in ONE invocation so
+    # the CLI applies both in a single config write. Role is ordered first;
+    # rebroadcast is verified afterwards, so a dropped write (role reboots) is
+    # still caught by the check below.
+    step("device role + rebroadcast_mode", mesh + [
         "--set", "device.role", device_role,
+        "--set", "device.rebroadcast_mode", node_params.REBROADCAST_MODE,
     ])
+    actual = get_config_value(mesh, "device.rebroadcast_mode")
+    if node_params.REBROADCAST_MODE.lower() not in actual.lower():
+        print(f"WARNING: device.rebroadcast_mode did not persist "
+              f"(expected {node_params.REBROADCAST_MODE}, read '{actual or 'unknown'}').")
+        failures.append("device.rebroadcast_mode (verify)")
+    else:
+        print(f"Verified device.rebroadcast_mode = {node_params.REBROADCAST_MODE}")
 
     # Bluetooth config: off — the nRF52840 proxy serves the BLE side.
     ble = str(node_params.BLUETOOTH_ENABLE).lower()
