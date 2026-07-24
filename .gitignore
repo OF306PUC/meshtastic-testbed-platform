@@ -12,6 +12,14 @@ execution/
 
 # Generated plot images (the plotting *scripts* are tracked)
 node-*.png
+*_plot.png
+
+# Field-testing toolkit: CSV captures + real (unsanitised) device export
+field-testing-data/
+src/tools/field_testing/example_config.yaml
+
+# Source archive dropped in for integration (contains plaintext secrets)
+platform-testing.zip
 
 # Agents
 .claude/

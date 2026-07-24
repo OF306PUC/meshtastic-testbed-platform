@@ -1,0 +1,72 @@
+# Reference Meshtastic device config for a field-test / solar node.
+# Produced from `meshtastic --export-config` and SANITISED for the repo:
+# the private key, channel URL and MQTT credentials are REDACTED — they are
+# per-device or shared secrets and must never be committed.
+#
+# This file is a reference of a known-good configuration. To keep a REAL local
+# export, copy it to `example_config.yaml` (gitignored) and fill the redacted
+# fields from your own device.
+#
+# Import onto a device with:  meshtastic --configure example_config.yaml
+# (Prefer the scripted flow: src/node/configure.py / configure_device.py, which
+#  read channel/PSK from src/common/radio_config.py + .env.)
+
+# Encodes the channel name + PSK — export from an already-configured device.
+channel_url: <REDACTED>
+
+config:
+  bluetooth:
+    enabled: true            # required for the BLE check method (Meshtastic app)
+    fixedPin: <SET-YOUR-PIN>  # 6-digit BLE pairing PIN
+  device:
+    nodeInfoBroadcastSecs: 10800
+    rebroadcastMode: LOCAL_ONLY
+    role: CLIENT_MUTE
+  display:
+    screenOnSecs: 600
+  lora:
+    region: ANZ
+    usePreset: true
+    hopLimit: 5
+    txEnabled: true
+    txPower: 30
+    sx126xRxBoostedGain: true
+    # bandwidth / codingRate / spreadFactor only apply when usePreset: false
+    bandwidth: 250
+    codingRate: 5
+    spreadFactor: 11
+  network:
+    ntpServer: meshtastic.pool.ntp.org
+  position:
+    gpsMode: ENABLED
+    gpsUpdateInterval: 30
+    positionBroadcastSecs: 30
+    positionBroadcastSmartEnabled: true
+    broadcastSmartMinimumDistance: 100
+    broadcastSmartMinimumIntervalSecs: 30
+    positionFlags: 811
+  power:
+    lsSecs: 300
+    minWakeSecs: 10
+    sdsSecs: 4294967295
+    waitBluetoothSecs: 60
+  security:
+    privateKey: <REDACTED — per-device secret, never commit>
+    publicKey: <per-device public key>
+    serialEnabled: true
+
+module_config:
+  telemetry:
+    deviceUpdateInterval: 60
+    environmentUpdateInterval: 300
+  # NOTE: the raw export also carried a public-MQTT block (mqtt.meshtastic.org)
+  # with a plaintext password. Omitted deliberately — this testbed uses its own
+  # Mosquitto broker configured via docker-compose, not the device's MQTT module.
+
+owner: <owner-long-name>
+owner_short: <XXXX>
+
+location:
+  lat: <lat>
+  lon: <lon>
+  alt: <alt-metres>
