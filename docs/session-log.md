@@ -20,6 +20,94 @@ Entry format:
 
 ---
 
+## 2026-07-24 — Containerise the gateway receiver (single `docker compose up`)
+**Time:** (aprox)
+**User request:** Cómo se corre el proyecto a nivel de gateway y si se puede
+dejar todo en contenedores para levantarlo con un solo `docker compose`. Then:
+"sí" (build it). Also asked to stop using Argentine Spanish → saved as memory
+`user-language-neutral-spanish`.
+### Actions taken
+- Audited the run model: infra (mosquitto/influxdb/telegraf/web) was already
+  containerised; the **gateway receiver** (`src/gateway/receiver.py`) was the
+  only runtime piece still on the host (manual `.venv` or systemd, reading USB
+  serial). Config/flashing scripts are also host-only.
+- Added `gateway-receiver` as a 5th compose service with USB device passthrough
+  (`devices: ${GATEWAY_SERIAL_PORT:-/dev/ttyACM0}`), `BROKER_ADDRESS=mosquitto`,
+  `mesh_config.json` mounted read-only, `restart: unless-stopped`.
+- New `src/gateway/Dockerfile` (python:3.12-slim, build context = repo root) and
+  slim `src/gateway/requirements.txt` (meshtastic + paho-mqtt + pinned direct
+  imports; excludes the heavy matplotlib/pandas from the root reqs).
+- Parametrised `src/gateway/config.py` (`BROKER_ADDRESS`/`BROKER_PORT`/
+  `CLIENT_ID`/`MESH_CONFIG_PATH` via env, defaults unchanged) and made
+  `receiver.py --port` fall back to `GATEWAY_SERIAL_PORT` (still errors if
+  neither is set).
+- Updated README (first pass): Stage 2 (five services) + Stage 3 Option C.
+- **README rewrite (second pass, at owner's request):** collapsed the whole
+  run flow into one clean path. Discovery: `install_service.sh` does NOT exist
+  in the repo — the entire systemd "Option B" section documented a phantom
+  script. Removed Options A/B/C, the systemd section, and all serial-port-
+  routing prose (owner: "it just needs to work"). New structure: Getting
+  Started (Docker + venv-for-config-scripts) → Hardware Setup (one-time) →
+  Running the Platform (single `docker compose up -d`, service table, verify).
+  Fixed repo-structure listing (added gateway Dockerfile/requirements, corrected
+  receiver `--port` note and compose comment). Owner added `GATEWAY_SERIAL_PORT`
+  to `.env.example` themselves (env files are permission-blocked for the agent).
+- Verified: `docker compose config` OK; `docker compose build gateway-receiver`
+  OK; container smoke test — imports resolve, `MESH_CONFIG_PATH` →
+  `/app/mesh_config.json`, no-port error path exits 2, `BROKER_ADDRESS` env
+  override works.
+### Decisions
+- **Went direct, not `/team-new-feature`** — contained, low-risk infra change.
+- **Config scripts stay on the host** (not in the always-on stack): setup-time,
+  run one device at a time, would contend for the serial port. Container option
+  is Linux-only in practice (Docker Desktop USB passthrough on macOS/Windows is
+  unsupported/painful) — documented, host Options A/B remain.
+- Host defaults left intact (`localhost`, `--port` required) so systemd/manual
+  deployments are byte-for-byte unaffected. Data contract preserved
+  (see [[data-contract-gateway-web]] — no field/topic changes).
+### Outcomes
+- `docker compose up -d` now brings up the full runtime pipeline including the
+  gateway. Working tree has uncommitted changes (not committed — no instruction).
+### Later this session — integrate `platform-testing.zip` (field-install toolkit)
+- Owner dropped `platform-testing.zip` (9 files, dated April) — an offline
+  node-install validation toolkit (serial → per-node CSV + gateway GPS track,
+  plus a session plotter). Distinct from the production MQTT/InfluxDB pipeline.
+- Inspected all files; flagged 3 conflicts. Owner decided via 4-question prompt:
+  (1) location → `src/tools/field_testing/`; (2) radio config → **reuse
+  `src/common/radio_config.py`** (the zip's `param_receiver.py` was stale:
+  single channel `TB CPS-RTC` + `LONG_FAST` + **plaintext PSK**, vs production's
+  dual-channel `telCPS_RTC`/`msgPUC_NET` + `LONG_TURBO` + env PSKs — a test
+  receiver on the old config would NOT hear the nodes); (3) secrets → sanitise +
+  `.example`, gitignore the real; (4) BLE → documented as Meshtastic-app manual
+  procedure, no code.
+- Created `src/tools/field_testing/`: `__init__.py`, `mesh_receiver.py` (CSV
+  receiver, verbatim), `receiver.py` (reuses root `mesh_config.json`, default
+  out `field-testing-data/`), `configure_device.py` (reuses `common.radio_config`
+  + `common.meshtastic_cli`; CLIENT_MUTE + GPS on for walk-tests), `plot_data.py`
+  (default dir points at `field-testing-data/`), `example_config.yaml.example`
+  (sanitised — privateKey/channel_url/mqtt creds redacted, public-MQTT block
+  dropped), and a `README.md` documenting both validation methods.
+- Dropped from the zip: `param_receiver.py` (→ common), its `mesh_config.json`
+  (→ root), `requirements.txt` (→ root reqs).
+- `.gitignore`: added `field-testing-data/`, `*_plot.png`, the real
+  `example_config.yaml`, and `platform-testing.zip` (has plaintext secrets).
+- README: added `field_testing/` to the structure + a toolkit subsection.
+- Verified: all 5 scripts byte-compile; `receiver.py`/`plot_data.py`/
+  `configure_device.py --help` run; `plot_data.py` on empty dir reports cleanly;
+  `configure_device.py` import path (`common.radio_config`) resolves.
+
+### Next steps / open questions
+- Owner can delete `platform-testing.zip` now that it's integrated (gitignored
+  meanwhile). The stale plaintext PSK in it is a rotation candidate if that
+  channel was ever used outside the lab.
+- Optional: expose the config/flashing scripts as a `docker compose run` profile
+  (opt-in) if fully-dockerised setup is ever wanted.
+- `project-overview.md` pipeline diagram still shows the receiver as host-only —
+  update to note the container option (flagged for doc-keeper).
+- Commit when the owner instructs (git-lead / `/team-git-checkpoint`).
+
+---
+
 ## 2026-07-21 — Git checkpoint — ADR-0001 + BLE-proxy integration committed
 **Time:** (aprox)
 **User request:** Ran `/start`; producer + doc-keeper synthesized a briefing

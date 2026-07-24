@@ -57,10 +57,12 @@ meshtastic-testbed-platform/
 │   ├── gateway/
 │   │   ├── configure.py              # Configure the LILYGO gateway via Meshtastic CLI
 │   │   ├── configure_params.py       # Gateway-specific parameter constants
-│   │   ├── config.py                 # Gateway runtime config
-│   │   ├── receiver.py               # Main gateway receiver (requires --port)
+│   │   ├── config.py                 # Gateway runtime config (env-overridable)
+│   │   ├── receiver.py               # Main gateway receiver (--port or GATEWAY_SERIAL_PORT)
 │   │   ├── mesh_receiver.py          # Mesh packet receiver / decoder
-│   │   └── mqtt_connector.py         # Publishes decoded telemetry to Mosquitto
+│   │   ├── mqtt_connector.py         # Publishes decoded telemetry to Mosquitto
+│   │   ├── Dockerfile                # Slim image for the gateway-receiver service
+│   │   └── requirements.txt          # Gateway-only Python dependencies
 │   │
 │   ├── node/
 │   │   ├── configure.py              # Configure a sensor node via Meshtastic CLI
@@ -68,7 +70,14 @@ meshtastic-testbed-platform/
 │   │
 │   └── tools/
 │       ├── check_node_info.py        # Reads and prints node info over serial
-│       └── plot_history.py           # Plots telemetry history from InfluxDB
+│       ├── plot_history.py           # Plots telemetry history from InfluxDB
+│       └── field_testing/            # Offline node-install validation (CSV + plots)
+│           ├── configure_device.py   # Configure the portable test gateway (reuses common/)
+│           ├── receiver.py           # Serial → per-node CSV receiver (+ gateway GPS)
+│           ├── mesh_receiver.py      # CSV-logging receiver class
+│           ├── plot_data.py          # Session plots from CSV (RSSI/SNR, trajectory)
+│           ├── example_config.yaml.example  # Sanitised reference device export
+│           └── README.md             # BLE-app vs test-receiver validation guide
 │
 ├── firmware/
 │   ├── erase_firmware/               # UF2 binary to erase existing firmware (nRF52)
@@ -95,7 +104,7 @@ meshtastic-testbed-platform/
 ├── telegraf/
 │   └── etc/telegraf.conf             # Telegraf agent configuration (MQTT → InfluxDB)
 │
-├── docker-compose.yaml               # Container orchestration (mosquitto + influxdb + telegraf + web)
+├── docker-compose.yaml               # Container orchestration (mosquitto + influxdb + telegraf + gateway-receiver + web)
 ├── configuration.env                 # InfluxDB + web credentials (gitignored; see .example)
 ├── configuration.env.example         # Template for configuration.env
 ├── .env                              # Channel PSK and secrets (gitignored; see .example)
@@ -177,6 +186,21 @@ Queries InfluxDB and plots historical telemetry data.
 python src/tools/plot_history.py
 ```
 
+### `src/tools/field_testing/` — Field-Install Validation Toolkit
+
+Offline tools to validate solar nodes **while installing them in the field** —
+separate from the production MQTT/InfluxDB pipeline (logs to CSV, no Docker).
+Two methods: a quick **BLE** check via the Meshtastic app, or a **portable test
+receiver** that logs telemetry/position (with RSSI/SNR) plus the gateway's own
+GPS track, then plots the session. Full guide in
+[`src/tools/field_testing/README.md`](src/tools/field_testing/README.md).
+
+```bash
+python src/tools/field_testing/configure_device.py --port /dev/ttyACM0  # set up the portable gateway (once)
+python src/tools/field_testing/receiver.py --port /dev/ttyACM0          # log a session to field-testing-data/
+python src/tools/field_testing/plot_data.py                             # analyse the session
+```
+
 ### `mesh_config.json` — Per-Node Mesh Parameters
 
 Defines each node's hardware ID, `device_role`, and `hop_limit`. Referenced at runtime by `src/node/configure.py`.
@@ -203,10 +227,9 @@ Defines each node's hardware ID, `device_role`, and `hop_limit`. Referenced at r
 
 ### Prerequisites
 
-- Python 3.8+
-- Docker and Docker Compose
-- LILYGO gateway and sensor nodes (connected one at a time via USB during configuration)
-- Meshtastic Python CLI (installed via `requirements.txt`)
+- **Docker and Docker Compose** — run the entire platform.
+- A **Linux host** with the LILYGO gateway connected via USB (its serial device is passed through to a container).
+- **Python 3.8+** — only for the one-time hardware-configuration scripts below; not needed to run the stack.
 
 ### Installation
 
@@ -214,20 +237,28 @@ Defines each node's hardware ID, `device_role`, and `hop_limit`. Referenced at r
 git clone https://github.com/OF306PUC/meshtastic-testbed-platform.git
 cd meshtastic-testbed-platform
 
+# Create the config files from their templates, then fill them in
+cp .env.example .env                           # channel PSK + gateway serial port
+cp configuration.env.example configuration.env # InfluxDB credentials
+```
+
+The runtime stack runs entirely in Docker — no Python install is needed to run it. A local virtualenv is only required for the **one-time hardware-configuration scripts** (`configure.py`, `check_node_info.py`, `plot_history.py`):
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-# Set up secrets
-cp .env.example .env                           # then fill in PSK
-cp configuration.env.example configuration.env # then fill in InfluxDB creds
 ```
 
 ---
 
+## Hardware Setup (one-time, per device)
+
+Flash firmware and apply radio/mesh configuration to each device over USB, using the local virtualenv from the Installation step. This is done once per device; afterwards the platform runs entirely in Docker.
+
 ### Step 1 — Flash Meshtastic Firmware
 
-> **Required before any Python configuration.** The Meshtastic CLI communicates over USB serial and will not work on a device without Meshtastic firmware.
+> **Required before any configuration.** The Meshtastic CLI communicates over USB serial and will not work on a device without Meshtastic firmware.
 
 The `firmware/` folder contains firmware binaries for the SensCAP Solar Node P1 Pro (nRF52). Flashing is done via drag-and-drop — no additional tools needed.
 
@@ -261,12 +292,12 @@ Applies `CLIENT_MUTE` role, channel settings, and disables telemetry/GPS. Reboot
 
 ---
 
-### Step 3 — Configure Each Sensor Node
+### Step 3 — Register & Configure Each Sensor Node
 
 1. Connect a sensor node via USB.
-2. Review `src/common/radio_config.py` and `src/node/configure_params.py`; update if needed.
-3. Verify the node's `hop_limit` and `device_role` in `mesh_config.json`.
-4. Run:
+2. Find its hardware ID with `python src/tools/check_node_info.py`, then add it to `mesh_config.json` under `nodes_cfg` with its `hop_limit` and `device_role`.
+3. Review `src/common/radio_config.py` and `src/node/configure_params.py`; update if needed.
+4. Apply the configuration:
 
 ```bash
 python src/node/configure.py --node-id 1 [--port /dev/ttyUSB0]   # repeat for IDs 2, 3
@@ -276,17 +307,9 @@ The node reboots automatically once all settings are applied.
 
 ---
 
-## Deployment
+## Running the Platform
 
-These steps bring up the full data pipeline. They are independent of the hardware configuration above and assume the mesh network is already set up.
-
-### Stage 1 — Register a New Node
-
-Use `src/tools/check_node_info.py` to find the node's hardware ID, then add it to `mesh_config.json` under `nodes_cfg` before running any configuration scripts.
-
-### Stage 2 — Start the Infrastructure Containers
-
-The pipeline runs on four Docker services: **Mosquitto** (MQTT broker), **InfluxDB** (time-series DB), **Telegraf** (MQTT → InfluxDB bridge), and **web** (Flask + SocketIO dashboard).
+The entire runtime runs as Docker services. With the LILYGO gateway connected to the host via USB, one command brings everything up:
 
 ```bash
 docker compose up -d
@@ -296,89 +319,49 @@ docker compose ps
 Expected output:
 
 ```
-NAME                       IMAGE                          STATUS
-telegraf                   telegraf:1.32-alpine           Up
-influxdb                   influxdb:1.11-alpine           Up
-meshtastic-testbed-mqtt-broker   eclipse-mosquitto:2.0                Up
-meshtastic-testbed-web           meshtastic-testbed-platform-web      Up
+NAME                             IMAGE                                          STATUS
+meshtastic-testbed-mqtt-broker   eclipse-mosquitto:2.0                          Up
+influxdb                         influxdb:1.11-alpine                           Up
+telegraf                         telegraf:1.32-alpine                           Up
+meshtastic-testbed-gateway       meshtastic-testbed-platform-gateway-receiver   Up
+meshtastic-testbed-web           meshtastic-testbed-platform-web                Up
 ```
+
+| Service | Role |
+|---|---|
+| `mosquitto` | MQTT broker |
+| `influxdb` | Time-series database (persisted in the `influxdb_data` volume, survives restarts) |
+| `telegraf` | Bridges MQTT → InfluxDB |
+| `gateway-receiver` | Reads mesh telemetry from the USB gateway and publishes it to MQTT |
+| `web` | Realtime dashboard — [http://localhost:5000](http://localhost:5000) |
 
 Useful commands:
 
 ```bash
-docker compose logs -f <service>   # telegraf | influxdb | mosquitto | web
+docker compose logs -f gateway-receiver   # or: mosquitto | influxdb | telegraf | web
+docker compose restart gateway-receiver
 docker compose down
 ```
 
-> InfluxDB data is persisted in the `influxdb_data` Docker volume and survives restarts.
+> The gateway board must be plugged in **before** `docker compose up`. `restart: unless-stopped` brings the receiver back automatically after a crash or host reboot.
 
-### Stage 3 — Run the Gateway Receiver
+### Verify data is flowing
 
-The receiver reads mesh telemetry over serial and publishes it to Mosquitto under
-`meshtastic-testbed/<node-label>/{device,environment,position}`. Telegraf writes these to
-InfluxDB automatically. Choose **one** of the two ways to run it below — do not run both
-at once, since they would both try to open the same serial port.
-
-#### Option A — Manual (for testing and debugging)
-
-Runs in the foreground and logs to the terminal; stop with `Ctrl+C`.
-
-```bash
-source .venv/bin/activate
-python src/gateway/receiver.py --port /dev/ttyACM0
-```
-
-#### Option B — As a systemd service (recommended for permanent deployment)
-
-For unattended operation, install the receiver as a systemd service so it starts on boot
-and restarts automatically on failure. Run from the repo root:
-
-```bash
-sudo ./install_service.sh --port /dev/ttyACM0    # --port defaults to /dev/ttyACM0
-```
-
-This writes `/etc/systemd/system/lora-gateway.service` (wired to the repo's `.venv` and
-`src/gateway/receiver.py`), then enables and starts it. Manage it with:
-
-```bash
-sudo systemctl status  lora-gateway    # check status
-journalctl -u lora-gateway -f          # follow live logs
-sudo systemctl restart lora-gateway    # restart
-sudo systemctl stop    lora-gateway    # stop
-sudo systemctl disable lora-gateway    # don't start on boot
-```
-
-> **Prerequisite:** the virtualenv must already exist (`python3 -m venv .venv && pip install -r requirements.txt`) — the installer checks for `.venv/bin/python` and aborts if it's missing. The service runs as the invoking user (`$SUDO_USER`) and starts after `network.target` and `docker.service`.
-
-To verify data is flowing, open the InfluxDB CLI inside the container:
+Open the InfluxDB CLI inside its container and inspect the latest points:
 
 ```bash
 docker exec -it influxdb influx
 ```
 
-Then run these queries inside the shell:
-
 ```sql
--- List available databases
-SHOW DATABASES
-
--- Select the testbed database
 USE cpsrtc_meshtastic_telemetry
-
--- Confirm the measurement exists
 SHOW MEASUREMENTS
-
--- Count total points written
 SELECT count("received_at") FROM mqtt_consumer
-
--- Inspect the last 5 rows (most recent first)
 SELECT * FROM mqtt_consumer ORDER BY time DESC LIMIT 5
-
--- Filter by a specific node
 SELECT * FROM mqtt_consumer WHERE node_id='!7c70da02' ORDER BY time DESC LIMIT 5
 ```
 
-Exit the shell with `exit` or `Ctrl+D`.
+Exit with `exit` or `Ctrl+D`.
 
 ---
 
