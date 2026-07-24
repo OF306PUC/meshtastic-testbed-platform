@@ -1,0 +1,10 @@
+# Slim dependency set for the containerised gateway receiver.
+# Kept separate from the repo-root requirements.txt, which is heavy
+# (matplotlib, pandas, bleak, dbus-fast) and unnecessary at runtime here.
+# meshtastic transitively pulls pyserial, protobuf and pypubsub; the direct
+# imports are pinned explicitly to match the versions proven in requirements.txt.
+meshtastic==2.7.8
+paho-mqtt==2.1.0
+pyserial==3.5
+Pypubsub==4.0.7
+protobuf==7.34.0

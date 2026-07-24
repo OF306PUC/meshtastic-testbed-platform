@@ -49,10 +49,18 @@ def load_known_nodes(config_path: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Run the Meshtastic MQTT gateway receiver")
-    parser.add_argument("--port", type=str, required=True, help="Serial port for Meshtastic gateway (e.g., /dev/ttyACM0)")
+    parser.add_argument(
+        "--port",
+        type=str,
+        default=os.getenv("GATEWAY_SERIAL_PORT"),
+        help="Serial port for Meshtastic gateway (e.g., /dev/ttyACM0). "
+             "Falls back to the GATEWAY_SERIAL_PORT env var (used by the container).",
+    )
 
     args = parser.parse_args()
     port = args.port
+    if not port:
+        parser.error("a serial port is required: pass --port or set GATEWAY_SERIAL_PORT")
 
     known_nodes = load_known_nodes(gateway_params.MESH_CONFIG_PATH)
     print(f"Loaded {len(known_nodes)} known nodes: {known_nodes}\n")

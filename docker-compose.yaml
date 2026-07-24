@@ -40,6 +40,28 @@ services:
     networks:
       - telegraf_network
 
+  gateway-receiver:
+    build:
+      context: .
+      dockerfile: src/gateway/Dockerfile
+    container_name: meshtastic-testbed-gateway
+    restart: unless-stopped
+    environment:
+      - BROKER_ADDRESS=mosquitto           # reach Mosquitto by service name
+      - BROKER_PORT=1883
+      - CLIENT_ID=meshtastic-testbed-gateway
+      - GATEWAY_SERIAL_PORT=${GATEWAY_SERIAL_PORT:-/dev/ttyACM0}
+    devices:
+      # Pass the USB serial device through to the container. Override the path
+      # with `GATEWAY_SERIAL_PORT=/dev/ttyUSB0 docker compose up` if it differs.
+      - "${GATEWAY_SERIAL_PORT:-/dev/ttyACM0}:${GATEWAY_SERIAL_PORT:-/dev/ttyACM0}"
+    volumes:
+      - ./mesh_config.json:/app/mesh_config.json:ro
+    depends_on:
+      - mosquitto
+    networks:
+      - telegraf_network
+
   web:
     build: ./monitor
     container_name: meshtastic-testbed-web
