@@ -20,6 +20,8 @@ class MQTTConnector:
     TOPIC_POSITION = "meshtastic-testbed/{node_label}/position"
     TOPIC_DEVICE = "meshtastic-testbed/{node_label}/device"
     TOPIC_ENV    = "meshtastic-testbed/{node_label}/environment"
+    TOPIC_MESSAGE = "meshtastic-testbed/{node_label}/message"
+    TOPIC_PDR    = "meshtastic-testbed/{node_label}/pdr"
 
     def __init__(self, broker_address: str, port: int = 1883, client_id: str = ""):
         """
@@ -133,4 +135,32 @@ class MQTTConnector:
             payload (dict): Environment telemetry data.
         """
         topic = self.TOPIC_ENV.format(node_label=node_label)
+        self.publish(topic, json.dumps(payload))
+
+    def publish_message(self, node_label: str, payload: dict):
+        """
+        Publish proxy message metadata (src/dst ids, link quality, frame sizes).
+
+        Args:
+            node_label (str): Label of the mesh node the frame was heard FROM —
+                which is the relay, not necessarily the originator. The
+                app-level originator is the payload's "src_id".
+            payload (dict): Message metadata.
+        """
+        topic = self.TOPIC_MESSAGE.format(node_label=node_label)
+        self.publish(topic, json.dumps(payload))
+
+    def publish_pdr(self, node_label: str, payload: dict):
+        """
+        Publish a packet-delivery-ratio update inferred while a flow was silent.
+
+        Receptions carry their PDR fields inside the position/device/environment
+        payloads; this topic exists for the losses that have no packet behind
+        them, which are the only way a fully dead node becomes visible.
+
+        Args:
+            node_label (str): Human-readable node label (e.g. "node-1").
+            payload (dict): PDR snapshot including "flow" and "source".
+        """
+        topic = self.TOPIC_PDR.format(node_label=node_label)
         self.publish(topic, json.dumps(payload))

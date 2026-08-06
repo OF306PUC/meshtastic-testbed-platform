@@ -41,8 +41,16 @@ Early / Experimental — all three phases of the roadmap are in flight:
 - [x] Codebase reorganised into `src/` package with shared `common/` layer
 - [x] Channel PSK moved to gitignored `.env`; InfluxDB creds to gitignored `configuration.env`
 - [x] Web dashboard integrated at `monitor/` and running via `docker compose up -d` (port 5000)
+- [x] Proxy message capture: `PRIVATE_APP` frames from the BLE proxy parsed for
+      `src_id`/`dst_id` and published as metadata on `.../message`
+- [x] Cadence-based PDR tracking per `(node, flow)` from the known broadcast
+      intervals in `mesh_config.json` (no sequence numbers needed)
 - [ ] `usbPower` / `isCharging` fields under debug (reported as 0 / false)
 - [ ] SHT4X I2C reliability issue unresolved (see Known constraints)
+- [ ] Proxy frame endianness unverified against the `meshtastic-ble-proxy` firmware
+      (assumed little-endian; a wrong byte order silently mirrors src/dst ids)
+- [ ] Message-level PDR blocked on an app-level `seq` counter in the proxy frame
+      (parser is ready behind `MeshReceiver.FRAME_HAS_SEQ`)
 
 ---
 
@@ -87,8 +95,43 @@ supports custom firmware to extend sensor coverage and fix known hardware-layer 
                           monitor/  (Flask + SocketIO dashboard, in-repo, port 5000)
 ```
 
-MQTT topics: `meshtastic-testbed/<node-label>/device` and `meshtastic-testbed/<node-label>/environment`.
+MQTT topics under `meshtastic-testbed/<node-label>/`:
+
+| Topic | Contents |
+|---|---|
+| `device` | device metrics (battery, voltage, channel/air utilisation, uptime) + PDR fields |
+| `environment` | temperature, humidity + PDR fields |
+| `position` | latitude, longitude, altitude + PDR fields |
+| `message` | proxy `PRIVATE_APP` frame metadata: `src_id`, `dst_id`, `fw_ver`, `seq`, sizes, link quality. No PDR (messages have no cadence). Content is opt-in via `capture_content` |
+| `pdr` | losses inferred while a flow was silent — the only way a fully dead node becomes visible |
+
 InfluxDB database: `cpsrtc_meshtastic_telemetry`, measurement: `mqtt_consumer`.
+
+### PDR measurement
+
+Packet delivery ratio is inferred from **inter-arrival gaps against the known
+broadcast cadence** — no sequence numbers involved. Each `(node, flow)` pair
+(flow ∈ device/environment/position) has its cadence declared in
+`mesh_config.json`, the same source the provisioning scripts write to the radios:
+
+```
+missed = max(0, round(dt / T) - 1)        pdr = rx / (rx + missed)
+```
+
+Two properties worth knowing before reading the numbers:
+
+- **`pdr` can never exceed 1.0.** The signal for a broken cadence assumption is
+  `early_count` — a packet arriving inside one nominal interval, typically
+  `position_broadcast_smart_enabled` left on.
+- **A rolling window and a cumulative ratio are both reported.** The window
+  holds `window_sec / T` slots, so a 1 h window over a 600 s position cadence is
+  only 6 samples; `pdr_window_slots` exposes that thin denominator rather than
+  hiding it.
+
+Accuracy is ±1 packet per gap (the firmware defers broadcasts under channel
+congestion, so T is nominal). Node reboots are detected from a falling
+`uptimeSeconds` and their downtime gap is discarded instead of charged as radio
+loss.
 
 ---
 

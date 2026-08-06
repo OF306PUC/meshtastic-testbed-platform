@@ -20,6 +20,91 @@ Entry format:
 
 ---
 
+## 2026-07-31 — Cadence-based PDR tracking + proxy message capture
+**Time:** (aprox)
+**User request:** Cómo implementar `_handle_text_message()` en
+`src/gateway/mesh_receiver.py` aprovechando `src_id`/`dst_id` del frame del
+proxy, con el objetivo de capturar la mayor cantidad de paquetes posible para
+análisis de PDR. Tras la propuesta inicial el owner acotó el alcance: **el PDR
+se calcula sólo sobre mensajes de cadencia conocida** (telemetría y posición),
+el `seq` en el payload queda como integración futura del firmware del proxy;
+ventana rodante de 30 min–1 h; intervalos en `mesh_config.json`; sin pipeline.
+
+### Actions taken
+- `src/common/mesh_config.py` (nuevo): lector compartido de `mesh_config.json`
+  — `load`, `node_cfg`, `intervals_for`, `pdr_window_sec`, `sweep_interval_sec`.
+- `mesh_config.json`: nuevo bloque `pdr_cfg` (`window_sec` por tipo de flujo,
+  `sweep_interval_sec`) e `intervals` por nodo (nodos 1-3: device/env 120 s,
+  position 600 s; p1/p2: device 900 s, position 1800 s, sin environment).
+- `src/gateway/mesh_receiver.py`: clase `CadencePdrTracker` + `_handle_text_message`
+  (parseo del frame `[fw_ver:1][src_id:4][dst_id:4][seq:2]?[content]` con
+  `struct`, little-endian) + sweep periódico en `listen()` + detección de
+  reboot vía `uptimeSeconds`.
+- `src/gateway/mqtt_connector.py`: `publish_message` / `publish_pdr` y topics
+  `.../message` y `.../pdr`.
+- `src/gateway/receiver.py`: dividido en `load_mesh_config` (I/O) +
+  `load_known_nodes` (mapeo) + `load_intervals` (cadencias).
+- `src/node/configure.py` + `src/proxy/configure.py`: leen las cadencias de
+  `mesh_config.json` y fijan `position.position_broadcast_smart_enabled false`.
+- Tests: `tests/test_pdr_tracker.py` (nuevo, 26 casos), casos nuevos en
+  `test_mesh_receiver.py` (frames de proxy + integración PDR) y
+  `test_load_nodes.py` (mapa de cadencias). 88 tests, todos pasando.
+
+### Decisions
+- **Estimador por huecos entre llegadas**, no conteo por ventana:
+  `missed = max(0, round(dt/T) - 1)`. Atribuye cada pérdida a un instante
+  concreto (correlacionable con RSSI), da la distribución de rachas gratis y
+  permite excluir un hueco específico cuando no fue el radio. `round()` y no
+  `floor()` porque el jitter del firmware es ~simétrico y `floor` inventaría
+  una pérdida en cada paquete atrasado.
+- **`sweep()` es detector de silencio, no la ventana.** Sin él el estimador
+  sólo se actualiza al recibir y un nodo muerto congela su PDR para siempre
+  (sesgo de supervivencia). La ventana es el `deque`: como los slots perdidos
+  se empujan como `0`, `maxlen = window_sec / T` **es** una ventana temporal
+  sin guardar timestamps.
+- **Reloj monotónico** para los `dt` (`time.monotonic()`); `received_at` sigue
+  wall-clock porque Telegraf lo usa como time key de InfluxDB. Un salto NTP en
+  el host habría fabricado pérdidas en todos los flujos a la vez.
+- **`pdr > 1` es imposible** con este estimador (`missed >= 0`), así que la
+  señal de cadencia violada es `early_count`: recepción dentro de un intervalo
+  nominal. Corrige una propuesta previa errónea de esta misma sesión.
+- **Intervalos en `mesh_config.json`, autoritativos y completos por nodo** — un
+  tipo ausente significa "este nodo no lo emite" y no se le mide PDR, en vez de
+  rellenarse con defaults (los proxies no emiten environment). Los constantes
+  duplicados salieron de `node/` y `proxy/configure_params.py`.
+- **Contenido de mensajes NO se publica por defecto** (`capture_content=False`):
+  son mensajes reales de teléfonos y el stream MQTT se persiste en InfluxDB.
+- Rechazado: bitmap de ventana deslizante por flujo para tolerar reordenamiento
+  (innecesario a esta tasa; anotado en el docstring si aparece en campo).
+
+### Outcomes
+- PDR por flujo `(nodo, tipo)` viaja dentro de los payloads existentes de
+  `device`/`environment`/`position` (aditivo, contrato con `monitor/` intacto);
+  las pérdidas inferidas en silencio van al topic nuevo `.../pdr`.
+- Bug encontrado y corregido durante los tests: `reanchor()` dejaba `last = now`
+  y la recepción que reportaba el reboot medía `dt = 0`, clasificándose como
+  *early*. Resuelto con un flag `restart` explícito; test de regresión añadido.
+- Detectado que `position_broadcast_smart_enabled` venía en `true` por defecto
+  (nunca se fijaba), lo que invalidaba la hipótesis de cadencia fija en nodos
+  móviles. Ahora se apaga explícitamente en node y proxy.
+
+### Next steps / open questions
+- **Verificar el endianness del frame** contra el firmware de
+  `meshtastic-ble-proxy`: está asumido little-endian (`<BII`). Un byte-order
+  equivocado no lanza error, sólo produce `src_id`/`dst_id` espejados.
+- **Cifrado de DMs:** si el proxy manda PRIVATE_APP como DM a un nodo
+  específico, en firmware reciente va con PKI del destinatario y el gateway no
+  podrá decodificarlo. El tráfico de medición debe ir a broadcast en el canal
+  compartido, o el gateway ser el `dst`.
+- Ventana de posición: 3600 s sobre cadencia de 600 s son sólo 6 slots
+  (resolución 16.7%). Subir a 21600 si se quiere un rolling útil.
+- El rol del gateway sesga lo que oye (ROUTER escucha más que CLIENT): hay que
+  registrarlo junto a cualquier PDR reportado o las corridas no son comparables.
+- Pendiente (no hecho): captura cruda a JSONL de *todos* los paquetes, incluidos
+  los no decodificables, para línea base de recepción offline.
+
+---
+
 ## 2026-07-24 — Containerise the gateway receiver (single `docker compose up`)
 **Time:** (aprox)
 **User request:** Cómo se corre el proyecto a nivel de gateway y si se puede

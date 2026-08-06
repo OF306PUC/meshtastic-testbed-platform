@@ -10,6 +10,7 @@ Run:
 
 import sys
 import time
+import struct
 import unittest
 from pathlib import Path
 
@@ -39,16 +40,39 @@ def _next_pkt_id():
     return _pkt_id_counter
 
 
-def _make_receiver():
+def _make_receiver(intervals=None):
     """Return a freshly constructed (MeshReceiver, FakeMQTT) pair."""
     fake = FakeMQTT()
     receiver = MeshReceiver(
         mqtt=fake,
         known_nodes={_KNOWN_NODE_ID: _KNOWN_NODE_LABEL},
+        intervals=intervals,
     )
     receiver.my_id  = _GATEWAY_ID
     receiver.my_num = _GATEWAY_NUM
     return receiver, fake
+
+
+def _private_packet(payload: bytes, pkt_id=None):
+    """Synthetic PRIVATE_APP packet carrying a raw proxy frame."""
+    return {
+        "fromId":   _KNOWN_NODE_ID,
+        "from":     0x0B64122B,
+        "id":       pkt_id if pkt_id is not None else _next_pkt_id(),
+        "rxRssi":   -95,
+        "rxSnr":    3.5,
+        "hopLimit": 2,
+        "hopStart": 3,
+        "decoded": {
+            "portnum": "PRIVATE_APP",
+            "payload": payload,
+        },
+    }
+
+
+def _proxy_frame(fw_ver=1, src=0x6C743130, dst=0xBB8106C4, content=b"hello"):
+    """Builds a little-endian [fw_ver][src_id][dst_id][content] frame."""
+    return struct.pack("<BII", fw_ver, src, dst) + content
 
 
 def _env_packet(temp=22.5, humidity=55.0, include_humidity=True, pkt_id=None):
@@ -135,6 +159,8 @@ class FakeMQTT:
         self.env_calls      = []   # list of (label, payload_dict)
         self.device_calls   = []
         self.position_calls = []
+        self.message_calls  = []
+        self.pdr_calls      = []
 
     def publish_env(self, label: str, payload: dict):
         self.env_calls.append((label, payload))
@@ -144,6 +170,12 @@ class FakeMQTT:
 
     def publish_position(self, label: str, payload: dict):
         self.position_calls.append((label, payload))
+
+    def publish_message(self, label: str, payload: dict):
+        self.message_calls.append((label, payload))
+
+    def publish_pdr(self, label: str, payload: dict):
+        self.pdr_calls.append((label, payload))
 
     def close(self):
         pass
@@ -496,6 +528,218 @@ class TestMalformedPackets(unittest.TestCase):
             self.receiver._on_receive(pkt, interface=None)
         except Exception as exc:
             self.fail(f"Missing 'decoded' raised {exc}")
+
+
+class TestProxyMessageFrame(unittest.TestCase):
+    """PRIVATE_APP frames from the BLE proxy: [fw_ver][src_id][dst_id][content]."""
+
+    def setUp(self):
+        self.receiver, self.fake = _make_receiver()
+
+    def test_valid_frame_publishes_src_and_dst(self):
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+
+        self.assertEqual(len(self.fake.message_calls), 1)
+        label, payload = self.fake.message_calls[0]
+
+        self.assertEqual(label, _KNOWN_NODE_LABEL)
+        self.assertEqual(payload["src_id"], "!6c743130")
+        self.assertEqual(payload["dst_id"], "!bb8106c4")
+        self.assertEqual(payload["fw_ver"], 1)
+        self.assertFalse(payload["malformed"])
+        self.assertEqual(payload["content_len"], len(b"hello"))
+        self.assertEqual(payload["payload_len"], 9 + len(b"hello"))
+
+    def test_node_id_is_the_relay_not_the_originator(self):
+        """
+        node_id is the mesh node the frame was heard from; src_id is the
+        app-level originator. Conflating them would misattribute every relayed
+        message to the relay.
+        """
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        _, payload = self.fake.message_calls[0]
+        self.assertEqual(payload["node_id"], _KNOWN_NODE_ID)
+        self.assertNotEqual(payload["src_id"], payload["node_id"])
+
+    def test_link_quality_is_carried(self):
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        _, payload = self.fake.message_calls[0]
+        self.assertEqual(payload["rssi"], -95)
+        self.assertAlmostEqual(payload["snr"], 3.5)
+        self.assertEqual(payload["hop"], 1)      # hopStart 3 - hopLimit 2
+
+    def test_empty_content_is_valid(self):
+        """A header-only frame is well-formed: 9 bytes, zero-length content."""
+        self.receiver._on_receive(
+            _private_packet(_proxy_frame(content=b"")), interface=None)
+
+        _, payload = self.fake.message_calls[0]
+        self.assertFalse(payload["malformed"])
+        self.assertEqual(payload["content_len"], 0)
+
+    def test_truncated_frame_reported_as_malformed(self):
+        """
+        A payload shorter than the 9-byte header must be reported, not guessed
+        at — an unreported malformed frame is an invisible loss.
+        """
+        self.receiver._on_receive(
+            _private_packet(b"\x01\x02\x03"), interface=None)
+
+        self.assertEqual(len(self.fake.message_calls), 1)
+        _, payload = self.fake.message_calls[0]
+        self.assertTrue(payload["malformed"])
+        self.assertEqual(payload["payload_len"], 3)
+
+    def test_non_bytes_payload_reported_as_malformed(self):
+        """Defends against a firmware/library change handing us a str."""
+        self.receiver._on_receive(
+            _private_packet("not-bytes"), interface=None)
+
+        _, payload = self.fake.message_calls[0]
+        self.assertTrue(payload["malformed"])
+
+    def test_seq_is_none_until_firmware_emits_it(self):
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        _, payload = self.fake.message_calls[0]
+        self.assertIsNone(payload["seq"])
+
+    def test_seq_parsed_when_frame_has_seq_enabled(self):
+        """Forward-compat: flipping FRAME_HAS_SEQ picks up the 2-byte counter."""
+        frame = struct.pack("<BII", 1, 0x6C743130, 0xBB8106C4) \
+            + struct.pack("<H", 4242) + b"hi"
+        original = MeshReceiver.FRAME_HAS_SEQ
+        MeshReceiver.FRAME_HAS_SEQ = True
+        try:
+            self.receiver._on_receive(_private_packet(frame), interface=None)
+        finally:
+            MeshReceiver.FRAME_HAS_SEQ = original
+
+        _, payload = self.fake.message_calls[0]
+        self.assertEqual(payload["seq"], 4242)
+        self.assertEqual(payload["content_len"], len(b"hi"))
+
+    def test_content_not_published_by_default(self):
+        """
+        Message bodies are real phone traffic and the MQTT stream is persisted,
+        so content is opt-in via capture_content.
+        """
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        _, payload = self.fake.message_calls[0]
+        self.assertNotIn("content_hex", payload)
+
+    def test_content_published_when_capture_enabled(self):
+        self.receiver.capture_content = True
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        _, payload = self.fake.message_calls[0]
+        self.assertEqual(payload["content_hex"], b"hello".hex())
+
+    def test_messages_carry_no_pdr_fields(self):
+        """Phone messages have no cadence, so no ratio can be inferred."""
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        _, payload = self.fake.message_calls[0]
+        for key in ("pdr", "pdr_window", "missed_est"):
+            self.assertNotIn(key, payload)
+
+
+class TestPdrIntegration(unittest.TestCase):
+    """PDR fields ride along inside the existing telemetry payloads."""
+
+    def test_pdr_fields_present_on_device_payload(self):
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120, "environment": 120,
+                                           "position": 600}})
+        receiver._on_receive(_device_packet(), interface=None)
+
+        _, payload = fake.device_calls[0]
+        for key in ("pdr", "pdr_window", "pdr_window_slots", "rx_count",
+                    "missed_est", "early_count", "cadence_violated"):
+            self.assertIn(key, payload, f"PDR field '{key}' missing")
+        self.assertIsNone(payload["pdr"], "first packet yields no ratio")
+        self.assertEqual(payload["rx_count"], 1)
+
+    def test_pdr_absent_when_node_declares_no_cadence(self):
+        """
+        A node with no cadence for a flow gets no PDR rather than a ratio
+        measured against an interval it was never configured with.
+        """
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120}})   # no environment
+        receiver._on_receive(_env_packet(), interface=None)
+
+        _, payload = fake.env_calls[0]
+        self.assertNotIn("pdr", payload)
+        self.assertIn("temperature", payload, "the telemetry itself still publishes")
+
+    def test_device_and_env_are_separate_flows(self):
+        """
+        Both ride on TELEMETRY_APP but are distinct broadcasts, so one must not
+        consume the other's slot.
+        """
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120, "environment": 120}})
+        receiver._on_receive(_device_packet(), interface=None)
+        receiver._on_receive(_env_packet(), interface=None)
+
+        self.assertEqual(fake.device_calls[0][1]["rx_count"], 1)
+        self.assertEqual(fake.env_calls[0][1]["rx_count"], 1)
+
+    def test_reboot_detected_from_falling_uptime(self):
+        """A decreasing uptimeSeconds re-anchors the node's flows."""
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120}})
+
+        pkt1 = _device_packet()
+        pkt1["decoded"]["telemetry"]["deviceMetrics"]["uptimeSeconds"] = 7200
+        receiver._on_receive(pkt1, interface=None)
+
+        pkt2 = _device_packet()
+        pkt2["decoded"]["telemetry"]["deviceMetrics"]["uptimeSeconds"] = 30
+        receiver._on_receive(pkt2, interface=None)
+
+        # The second packet lands microseconds after the first, so without the
+        # reboot re-anchor it would be classified off-cadence (early).
+        _, payload = fake.device_calls[1]
+        self.assertEqual(payload["early_count"], 0,
+            "a reboot must restart the cadence grid, not flag an early packet")
+
+    def test_sweep_publishes_losses_for_silent_flows(self):
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120}})
+        receiver._on_receive(_device_packet(), interface=None)
+
+        # Sweep 3 intervals after the reception the tracker recorded.
+        receiver._run_sweep(receiver._pdr._flows[(_KNOWN_NODE_LABEL, "device")]["last"]
+                            + 3.1 * 120)
+
+        self.assertEqual(len(fake.pdr_calls), 1)
+        label, payload = fake.pdr_calls[0]
+        self.assertEqual(label, _KNOWN_NODE_LABEL)
+        self.assertEqual(payload["flow"], "device")
+        self.assertEqual(payload["source"], "sweep")
+        self.assertEqual(payload["missed_est"], 2)
+        self.assertIn("received_at", payload)
+
+    def test_sweep_is_silent_when_nothing_is_overdue(self):
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120}})
+        receiver._on_receive(_device_packet(), interface=None)
+        receiver._run_sweep(receiver._pdr._flows[(_KNOWN_NODE_LABEL, "device")]["last"])
+
+        self.assertEqual(len(fake.pdr_calls), 0)
+
+    def test_duplicate_packet_does_not_inflate_pdr(self):
+        """
+        Dedup is load-bearing here: a rebroadcast counted as a second reception
+        would add a slot the sender never transmitted.
+        """
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120}})
+        shared = _next_pkt_id()
+        receiver._on_receive(_device_packet(pkt_id=shared), interface=None)
+        receiver._on_receive(_device_packet(pkt_id=shared), interface=None)
+
+        self.assertEqual(len(fake.device_calls), 1)
+        self.assertEqual(fake.device_calls[0][1]["rx_count"], 1)
 
 
 if __name__ == "__main__":

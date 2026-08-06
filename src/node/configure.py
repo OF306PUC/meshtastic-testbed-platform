@@ -1,11 +1,11 @@
 import sys
-import json
 import argparse
 from pathlib import Path
 
 # Make the `src/` package root importable when run directly.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from common import mesh_config  # noqa: E402
 from common.meshtastic_cli import run, get_config_value  # noqa: E402
 from node import configure_params as node_params  # noqa: E402
 
@@ -15,13 +15,10 @@ MESH_CONFIG_PATH = str(Path(__file__).resolve().parents[2] / "mesh_config.json")
 
 
 def load_config(node_id):
-    with open(MESH_CONFIG_PATH, "r") as f:
-        data = json.load(f)
-    
-    nodes = data["nodes_cfg"]
-    if node_id not in nodes: 
-        raise ValueError(f"Node ID {node_id} not found in {MESH_CONFIG_PATH}")
-    return nodes[node_id]
+    """Returns (node_cfg, intervals) for one node from mesh_config.json."""
+    data = mesh_config.load(MESH_CONFIG_PATH)
+    cfg  = mesh_config.node_cfg(data, node_id)
+    return cfg, mesh_config.intervals_for(cfg)
 
 def main():
     parser = argparse.ArgumentParser(description="Configure a LoRa mesh node using meshtastic CLI")
@@ -31,9 +28,15 @@ def main():
     args = parser.parse_args()
     node_id = args.node_id
     port_flag = f"--port {args.port}" if args.port else ""
-    node_cfg = load_config(node_id)
+    node_cfg, intervals = load_config(node_id)
     hop_limit = node_cfg["hop_limit"]
     device_role = node_cfg["device_role"]
+
+    # Broadcast cadences come from mesh_config.json so the gateway's PDR
+    # estimator measures against exactly what gets written to the radio. A kind
+    # omitted there is left at whatever the firmware already holds, and the
+    # gateway tracks no PDR for it.
+    print(f"Broadcast cadences from mesh_config.json: {intervals}")
 
     # radio_config only enforces the telemetry PSK; the messaging channel is
     # now mesh-wide too, so fail early if its key is missing.
@@ -91,19 +94,29 @@ def main():
     # Telemetry config
     DEV_MEAS = str(node_params.TELEMETRY_DEV_MEAS_ENABLED).lower()
     ENV_MEAS = str(node_params.TELEMETRY_ENV_MEAS_ENABLED).lower()
-    run(
-        f"meshtastic {port_flag} --set telemetry.device_telemetry_enabled {DEV_MEAS}"
+    telemetry_flags = (
+        f" --set telemetry.device_telemetry_enabled {DEV_MEAS}"
         f" --set telemetry.environment_measurement_enabled {ENV_MEAS}"
-        f" --set telemetry.device_update_interval {node_params.TELEMETRY_DEV_UPDATE_INTERVAL}"
-        f" --set telemetry.environment_update_interval {node_params.TELEMETRY_ENV_UPDATE_INTERVAL}"
     )
+    if "device" in intervals:
+        telemetry_flags += f" --set telemetry.device_update_interval {intervals['device']}"
+    if "environment" in intervals:
+        telemetry_flags += f" --set telemetry.environment_update_interval {intervals['environment']}"
+    run(f"meshtastic {port_flag}{telemetry_flags}")
 
-    # GPS config
-    run(
-        f"meshtastic {port_flag} --set position.gps_mode {node_params.GPS_MODE}"
+    # GPS config. position_broadcast_smart_enabled is set explicitly (firmware
+    # default is true): with smart broadcast on, a moving node emits extra
+    # position packets outside the periodic timer, which invalidates the
+    # fixed-cadence assumption the gateway's PDR estimator depends on.
+    SMART_POS = str(node_params.POSITION_BROADCAST_SMART_ENABLED).lower()
+    gps_flags = (
+        f" --set position.gps_mode {node_params.GPS_MODE}"
         f" --set position.gps_update_interval {node_params.GPS_UPDATE_INTERNAL_INTERVAL}"
-        f" --set position.position_broadcast_secs {node_params.GPS_UPDATE_BROADCAST_INTERVAL}"
+        f" --set position.position_broadcast_smart_enabled {SMART_POS}"
     )
+    if "position" in intervals:
+        gps_flags += f" --set position.position_broadcast_secs {intervals['position']}"
+    run(f"meshtastic {port_flag}{gps_flags}")
 
     # Reboot to apply changes
     run(f"meshtastic {port_flag} --reboot")

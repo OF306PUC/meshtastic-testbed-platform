@@ -9,10 +9,12 @@ from common.radio_config import (
 # ── Node-specific settings ────────────────────────────────────────────────────
 
 # Telemetry settings
+# The broadcast CADENCES (device/environment/position) are NOT here: they live
+# per node in mesh_config.json under "intervals", because the gateway's PDR
+# tracker measures against the very same numbers. Two copies would drift and the
+# receiver would infer losses against a cadence the node was never given.
 TELEMETRY_DEV_MEAS_ENABLED = True
 TELEMETRY_ENV_MEAS_ENABLED = True
-TELEMETRY_DEV_UPDATE_INTERVAL = 60     # [seconds]
-TELEMETRY_ENV_UPDATE_INTERVAL = 60     # [seconds]
 
 # Sensing node role choice
 DEVICE_ROLE_CLIENT = "CLIENT"
@@ -23,6 +25,14 @@ REQUIRED_HOPS_TO_GATEWAY = 1            # <-- set this per node (e.g., node1=2, 
 HOP_LIMIT = REQUIRED_HOPS_TO_GATEWAY + 1
 
 # GPS settings (optional)
+# position_broadcast_secs lives in mesh_config.json ("intervals".position) —
+# see the telemetry note above.
 GPS_MODE = "ENABLED"
-GPS_UPDATE_INTERNAL_INTERVAL = 300               # [seconds]
-GPS_UPDATE_BROADCAST_INTERVAL = 600              # [seconds] (default is 0, which means 15 min.)
+GPS_UPDATE_INTERNAL_INTERVAL = 300               # [seconds] local fix, no airtime
+
+# Smart position broadcast defaults to TRUE in firmware and adds
+# movement-triggered position packets on top of the periodic timer. That breaks
+# the fixed-cadence assumption the gateway's PDR estimator relies on (the extra
+# packets show up as `early_count` instead of improving the ratio), so it is
+# switched off explicitly on measured nodes.
+POSITION_BROADCAST_SMART_ENABLED = False

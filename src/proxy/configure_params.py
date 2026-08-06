@@ -15,10 +15,11 @@ from common.radio_config import (
 BLUETOOTH_ENABLE = False
 
 # Telemetry settings
-# device_update_interval: 0 = firmware default (frequent). Set explicitly to
-# 15 min so device metrics don't flood the client/mesh. 900 s = 15 min.
+# The broadcast cadence (device_update_interval) is NOT here: it lives per node
+# in mesh_config.json under "intervals", because the gateway's PDR estimator
+# measures against the very same number. Two copies would drift and the receiver
+# would infer losses against a cadence the node was never given.
 TELEMETRY_DEV_MEAS_ENABLED = True
-TELEMETRY_DEV_UPDATE_INTERVAL = 900    # [seconds] = 15 min
 
 # Serial module: exposes the Stream API (PhoneAPI framing) on UART1 so the
 # proxy can drive this node.
@@ -36,9 +37,13 @@ SERIAL_MODULE_TIMEOUT = 20             # [mili-seconds]
 # mesh_config.json — configure.py reads them via --node-id.
 
 # GPS settings (optional)
-# 0 = firmware default (broadcast default is ~15 min). Set explicitly:
-#   gps_update_interval    (local fix cadence, no mesh airtime)
-#   position_broadcast_secs(over-air position broadcast) -> 30 min
+# position_broadcast_secs (the over-air cadence) lives in mesh_config.json
+# ("intervals".position) — see the telemetry note above. Only the local fix
+# cadence, which costs no mesh airtime, stays here.
 GPS_MODE = "ENABLED"
 GPS_UPDATE_INTERNAL_INTERVAL = 1800              # [seconds] = 30 min (local GPS fix)
-GPS_UPDATE_BROADCAST_INTERVAL = 1800             # [seconds] = 30 min (mesh broadcast)
+
+# Smart position broadcast defaults to TRUE in firmware and adds
+# movement-triggered position packets on top of the periodic timer, which breaks
+# the fixed-cadence assumption the gateway's PDR estimator relies on.
+POSITION_BROADCAST_SMART_ENABLED = False

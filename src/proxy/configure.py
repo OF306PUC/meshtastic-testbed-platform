@@ -1,6 +1,5 @@
 import argparse
 import base64
-import json
 import subprocess
 import sys
 import time
@@ -12,6 +11,7 @@ import meshtastic.serial_interface
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from proxy import configure_params as node_params  # noqa: E402
+from common import mesh_config  # noqa: E402
 from common.meshtastic_cli import get_config_value  # noqa: E402
 
 # Resolve relative to repo root (this file lives at <root>/src/proxy/configure.py),
@@ -81,13 +81,10 @@ def decode_psk(psk_b64: str) -> bytes:
 
 
 def load_config(node_id):
-    with open(MESH_CONFIG_PATH, "r") as f:
-        data = json.load(f)
-
-    nodes = data["nodes_cfg"]
-    if node_id not in nodes:
-        raise ValueError(f"Node ID {node_id} not found in {MESH_CONFIG_PATH}")
-    return nodes[node_id]
+    """Returns (node_cfg, intervals) for one proxy node from mesh_config.json."""
+    data = mesh_config.load(MESH_CONFIG_PATH)
+    cfg  = mesh_config.node_cfg(data, node_id)
+    return cfg, mesh_config.intervals_for(cfg)
 
 
 def main() -> int:
@@ -98,9 +95,14 @@ def main() -> int:
 
     # Per-proxy settings (p1 and p2 have different hop limits) live in
     # mesh_config.json, same registry as the sensing nodes.
-    node_cfg = load_config(args.node_id)
+    node_cfg, intervals = load_config(args.node_id)
     hop_limit = node_cfg["hop_limit"]
     device_role = node_cfg["device_role"]
+
+    # Broadcast cadences live in mesh_config.json, the same numbers the gateway's
+    # PDR estimator measures against. A kind omitted there is left untouched on
+    # the radio and untracked by the gateway.
+    print(f"Broadcast cadences from mesh_config.json: {intervals}")
 
     # radio_config already enforces the telemetry PSK; the proxy node also
     # needs the messaging channel key, so fail early if it is missing.
@@ -182,13 +184,11 @@ def main() -> int:
 
     # Telemetry config
     dev_meas = str(node_params.TELEMETRY_DEV_MEAS_ENABLED).lower()
-    if node_params.TELEMETRY_DEV_MEAS_ENABLED:
-        step("telemetry", mesh + [
-            "--set", "telemetry.device_telemetry_enabled", dev_meas,
-            "--set", "telemetry.device_update_interval", str(node_params.TELEMETRY_DEV_UPDATE_INTERVAL),
-        ])
-    else:
-        step("telemetry", mesh + ["--set", "telemetry.device_telemetry_enabled", dev_meas])
+    telemetry_flags = ["--set", "telemetry.device_telemetry_enabled", dev_meas]
+    if node_params.TELEMETRY_DEV_MEAS_ENABLED and "device" in intervals:
+        telemetry_flags += ["--set", "telemetry.device_update_interval",
+                            str(intervals["device"])]
+    step("telemetry", mesh + telemetry_flags)
 
     # Serial module config: Stream API on UART1 → the BLE proxy drives the node.
     serial_en = str(node_params.SERIAL_MODULE_ENABLE).lower()
@@ -204,12 +204,18 @@ def main() -> int:
     else:
         step("serial module", mesh + ["--set", "serial.enabled", serial_en])
 
-    # GPS config
-    step("GPS", mesh + [
+    # GPS config. position_broadcast_smart_enabled is set explicitly (firmware
+    # default is true): movement-triggered extra position packets would break the
+    # fixed-cadence assumption behind the gateway's PDR estimator.
+    gps_flags = [
         "--set", "position.gps_mode", node_params.GPS_MODE,
         "--set", "position.gps_update_interval", str(node_params.GPS_UPDATE_INTERNAL_INTERVAL),
-        "--set", "position.position_broadcast_secs", str(node_params.GPS_UPDATE_BROADCAST_INTERVAL),
-    ])
+        "--set", "position.position_broadcast_smart_enabled",
+        str(node_params.POSITION_BROADCAST_SMART_ENABLED).lower(),
+    ]
+    if "position" in intervals:
+        gps_flags += ["--set", "position.position_broadcast_secs", str(intervals["position"])]
+    step("GPS", mesh + gps_flags)
 
     # Reboot to apply changes
     step("reboot", mesh + ["--reboot"])
