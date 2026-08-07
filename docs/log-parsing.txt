@@ -1,0 +1,368 @@
+[meshtastic-sender portnum=1]
+
+DEBUG | 14:08:48 231 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:08:48 231 [Serial] phone downloaded packet (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxtime=1786111727 rxSNR=6.5 rxRSSI=-3
+DEBUG | 14:08:48 231 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:08:48 231 [Serial] phone downloaded packet (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxtime=1786111727 rxSNR=6.5 rxRSSI=-3
+INFO  | 14:08:48 231 Tell client we have new packets 22
+DEBUG | 14:08:49 232 [RadioIf] Started Tx (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=50 rxtime=1786111727 rxSNR=6.5 rxRSSI=-39 hopS
+DEBUG | 14:08:49 232 [RadioIf] 1 packets remain in the TX queue
+DEBUG | 14:08:49 232 [RadioIf] Packet TX: 321ms
+DEBUG | 14:08:49 232 [RadioIf] Completed sending (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=50 rxtime=1786111727 rxSNR=6.5 rxRSSI=-
+DEBUG | 14:08:49 232 [RadioIf] rx_snr found. hop_limit:1 rx_snr:6.500000
+DEBUG | 14:08:49 232 [RadioIf] rx_snr found in packet. Setting tx delay:2142
+DEBUG | 14:08:51 234 [RadioIf] Corrected frequency offset: -1084.227539
+DEBUG | 14:08:51 234 [RadioIf] Lora RX (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8.5 rxRSSI=-28 hopStart=2 relay=0x30)
+DEBUG | 14:08:51 234 [RadioIf] Packet RX: 280ms
+DEBUG | 14:08:51 234 [RadioIf] rx_snr found. hop_limit:1 rx_snr:6.500000
+DEBUG | 14:08:51 234 [RadioIf] rx_snr found in packet. Setting tx delay:408
+INFO  | 14:08:51 234 [Router] Packet History - insert: Reusing slot aged 3.838s TRACE MATCHED PACKET
+DEBUG | 14:08:51 234 [Router] Ignore dupe incoming msg (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8.5 rxRSSI=-28 hopStart
+DEBUG | 14:08:51 235 [Router] cancelSending id=0x9b7a4b9e, removed=1
+DEBUG | 14:08:51 235 [Router] Incoming msg was filtered from 0x7c70da02
+INFO  | 14:08:57 241 [DeviceTelemetry] Send: air_util_tx=0.056361, channel_utilization=2.003333, battery_level=101, voltage=-0.001000, uptime=241
+DEBUG | 14:08:57 241 [DeviceTelemetry] Partially randomized packet id 1632709667
+DEBUG | 14:08:57 241 [DeviceTelemetry] updateTelemetry LOCAL
+DEBUG | 14:08:57 241 [DeviceTelemetry] Node status update: 1 online, 3 total
+INFO  | 14:08:57 241 [DeviceTelemetry] Send packet to phone
+INFO  | 14:08:57 241 Tell client we have new packets 23
+DEBUG | 14:08:57 241 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:08:57 241 [Serial] phone downloaded packet (id=0x61512c23 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0x0 Portnum=67 rxtime=1786111737 priority=10)
+DEBUG | 14:09:46 290 [Serial] PACKET FROM PHONE (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x1 Portnum=1 hopStart=1)
+DEBUG | 14:09:46 290 [Serial] handleReceived(USER) (id=0x3a5f05e6 fr=0x00000000 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x1 Portnum=1 rxtime=1786111786 hopStart=1)
+DEBUG | 14:09:46 290 [Serial] Module 'text' wantsPacket=1
+INFO  | 14:09:46 290 [Serial] Received text msg from=0x0, id=0x3a5f05e6, msg=####otest_all
+DEBUG | 14:09:46 290 [Serial] Module 'text' considered
+DEBUG | 14:09:46 290 [Serial] Module 'ExternalNotificationModule' wantsPacket=1
+INFO  | 14:09:46 290 [Serial] External Notification Module Disabled or muted
+DEBUG | 14:09:46 290 [Serial] Module 'ExternalNotificationModule' considered
+DEBUG | 14:09:46 290 [Serial] Module 'routing' wantsPacket=1
+DEBUG | 14:09:46 290 [Serial] Routing sniffing (id=0x3a5f05e6 fr=0x00000000 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x1 Portnum=1 rxtime=1786111786 hopStart=1)
+DEBUG | 14:09:46 290 [Serial] Module 'routing' considered
+DEBUG | 14:09:46 290 [Serial] Setting next retransmission in 5930 msecs: 
+DEBUG | 14:09:46 290 [Serial]  (id=0x3a5f05e6 fr=0x00000000 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x1 Portnum=1 rxtime=1786111786 hopStart=1)
+INFO  | 14:09:46 290 [Serial] Packet History - insert: Using new slot @uptime 290.137s TRACE NEW
+DEBUG | 14:09:46 290 [Serial] Use AES256 key!
+DEBUG | 14:09:46 290 [Serial] enqueue for send (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0x28 encrypted len=35 rxtime=1786111786 hopStart=1 relay=0x
+DEBUG | 14:09:46 290 [Serial] txGood=6,txRelay=4,rxGood=8,rxBad=0
+DEBUG | 14:09:46 290 [Serial] FromRadio=STATE_SEND_PACKETS
+INFO  | 14:09:47 290 Tell client we have new packets 24
+DEBUG | 14:09:47 290 [RadioIf] Started Tx (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0x28 encrypted len=35 rxtime=1786111786 hopStart=1 relay=0xc4 pri
+DEBUG | 14:09:47 290 [RadioIf] 0 packets remain in the TX queue
+DEBUG | 14:09:47 290 [RadioIf] Packet TX: 260ms
+DEBUG | 14:09:47 290 [RadioIf] Completed sending (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0x28 encrypted len=35 rxtime=1786111786 hopStart=1 relay=0
+DEBUG | 14:09:48 291 [RadioIf] Corrected frequency offset: -1142.947876
+DEBUG | 14:09:48 291 [RadioIf] Lora RX (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=0 Ch=0x28 encrypted len=35 rxSNR=8.5 rxRSSI=-26 hopStart=1 relay=0x30)
+DEBUG | 14:09:48 291 [RadioIf] Packet RX: 260ms
+DEBUG | 14:09:48 291 [Router] Rx someone rebroadcasting for us (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0x28 encrypted len=35 rxSNR=8.5 rxRSSI=-26 
+DEBUG | 14:09:48 291 [Router] Generate implicit ack
+DEBUG | 14:09:48 291 [Router] Partially randomized packet id 3731424292
+DEBUG | 14:09:48 291 [Router] Enqueued local (id=0xde690424 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x1 Portnum=5 requestId=3a5f05e6 rxtime=1786111788 priority=1
+INFO  | 14:09:48 291 [Router] Packet History - insert: Reusing slot aged 1.552s TRACE MATCHED PACKET
+DEBUG | 14:09:48 291 [Router] Ignore dupe incoming msg (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0x28 encrypted len=35 rxSNR=8.5 rxRSSI=-26 hopStart
+DEBUG | 14:09:48 291 [Router] cancelSending id=0x3a5f05e6, removed=0
+DEBUG | 14:09:48 291 [Router] Incoming msg was filtered from 0xbb8106c4
+DEBUG | 14:09:48 291 [Router] Rx someone rebroadcasting for us (id=0xde690424 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x1 Portnum=5 requestId=3a5f05e6 rxtime=178
+DEBUG | 14:09:48 291 [Router] Didn't find pending packet
+INFO  | 14:09:48 291 [Router] Packet History - insert: Using new slot @uptime 291.758s TRACE NEW
+DEBUG | 14:09:48 291 [Router] handleReceived(REMOTE) (id=0xde690424 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x1 Portnum=5 requestId=3a5f05e6 rxtime=1786111788 pr
+DEBUG | 14:09:48 291 [Router] Module 'routing' wantsPacket=1
+INFO  | 14:09:48 291 [Router] Received routing from=0xbb8106c4, id=0xde690424, portnum=5, payloadlen=2
+DEBUG | 14:09:48 291 [Router] Routing sniffing (id=0xde690424 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x1 Portnum=5 requestId=3a5f05e6 rxtime=1786111788 priority
+DEBUG | 14:09:48 291 [Router] Received a ACK for 0x3a5f05e6, stopping retransmissions
+DEBUG | 14:09:48 291 [Router] Delivering rx packet (id=0xde690424 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x1 Portnum=5 requestId=3a5f05e6 rxtime=1786111788 prio
+DEBUG | 14:09:48 291 [Router] Ignore update from self
+DEBUG | 14:09:48 291 [Router] Forwarding to phone (id=0xde690424 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x1 Portnum=5 requestId=3a5f05e6 rxtime=1786111788 prior
+DEBUG | 14:09:48 291 [Router] Module 'routing' considered
+DEBUG | 14:09:48 291 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:09:48 291 [Serial] phone downloaded packet (id=0xde690424 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x1 Portnum=5 requestId=3a5f05e6 rxtime=1786111788 p
+INFO  | 14:09:48 291 Tell client we have new packets 25
+
+
+[meshtastic-receiver portnum=1]
+DEBUG | ??:??:?? 165 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 165 [Serial] phone downloaded packet (id=0x3bb27b9b fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.25 rxRSSI=-41 hopStart=2 rela
+DEBUG | ??:??:?? 165 [RadioIf] Corrected frequency offset: 417.333252
+DEBUG | ??:??:?? 165 [RadioIf] Lora RX (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 0, WantAck=0, HopLim=2 Ch=0xec encrypted len=39 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 165 [RadioIf] Packet RX: 280ms
+DEBUG | ??:??:?? 165 [RadioIf] rx_snr found. hop_limit:1 rx_snr:8.250000
+DEBUG | ??:??:?? 165 [RadioIf] rx_snr found in packet. Setting tx delay:1275
+INFO  | ??:??:?? 165 [Router] Packet History - insert: Using new slot @uptime 165.985s TRACE NEW
+DEBUG | ??:??:?? 166 [Router] Use channel 0 (hash 0xec)
+DEBUG | ??:??:?? 166 [Router] Use AES256 key!
+DEBUG | ??:??:?? 166 [Router] decoded message (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 166 [Router] handleReceived(REMOTE) (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay=
+DEBUG | ??:??:?? 166 [Router] Module 'DeviceTelemetry' wantsPacket=1
+INFO  | ??:??:?? 166 [Router] Received DeviceTelemetry from=0x7c70da02, id=0x80b17b9c, portnum=67, payloadlen=17
+DEBUG | ??:??:?? 166 [Router] Module 'DeviceTelemetry' considered
+DEBUG | ??:??:?? 166 [Router] Module 'routing' wantsPacket=1
+DEBUG | ??:??:?? 166 [Router] Routing sniffing (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay=0x2)
+INFO  | ??:??:?? 166 [Router] Rebroadcast received message coming from 2
+INFO  | ??:??:?? 166 [Router] Packet History - insert: Reusing slot aged 0.123s TRACE MATCHED PACKET
+DEBUG | ??:??:?? 166 [Router] Use AES256 key!
+DEBUG | ??:??:?? 166 [Router] enqueue for send (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay
+DEBUG | ??:??:?? 166 [Router] txGood=4,txRelay=2,rxGood=11,rxBad=0
+DEBUG | ??:??:?? 166 [Router] rx_snr found. hop_limit:1 rx_snr:8.250000
+DEBUG | ??:??:?? 166 [Router] rx_snr found in packet. Setting tx delay:2278
+DEBUG | ??:??:?? 166 [Router] Delivering rx packet (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay=0x
+DEBUG | ??:??:?? 166 [Router] Update DB node 0x7c70da02, rx_time=0
+DEBUG | ??:??:?? 166 [Router] Forwarding to phone (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay=0x2
+DEBUG | ??:??:?? 166 [Router] Module 'routing' considered
+INFO  | ??:??:?? 166 Tell client we have new packets 12
+DEBUG | ??:??:?? 166 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 166 [Serial] phone downloaded packet (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-41 hopStart=2 relay
+DEBUG | ??:??:?? 167 [RadioIf] Corrected frequency offset: 878.706665
+DEBUG | ??:??:?? 167 [RadioIf] Lora RX (id=0x3bb27b9b fr=0x7c70da02 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=50 rxSNR=7.75 rxRSSI=-26 hopStart=2 relay=0xc4)
+DEBUG | ??:??:?? 167 [RadioIf] Packet RX: 321ms
+DEBUG | ??:??:?? 167 [RadioIf] rx_snr found. hop_limit:1 rx_snr:8.250000
+DEBUG | ??:??:?? 167 [RadioIf] rx_snr found in packet. Setting tx delay:1530
+INFO  | ??:??:?? 167 [Router] Packet History - insert: Reusing slot aged 1.507s TRACE MATCHED PACKET
+DEBUG | ??:??:?? 167 [Router] Ignore dupe incoming msg (id=0x3bb27b9b fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=50 rxSNR=7.75 rxRSSI=-26 hopStar
+DEBUG | ??:??:?? 167 [Router] cancelSending id=0x3bb27b9b, removed=1
+DEBUG | ??:??:?? 167 [Router] Incoming msg was filtered from 0x7c70da02
+DEBUG | ??:??:?? 167 [RadioIf] Corrected frequency offset: 887.095276
+DEBUG | ??:??:?? 167 [RadioIf] Lora RX (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8.25 rxRSSI=-25 hopStart=2 relay=0xc4)
+DEBUG | ??:??:?? 167 [RadioIf] Packet RX: 280ms
+DEBUG | ??:??:?? 167 [RadioIf] rx_snr found. hop_limit:1 rx_snr:8.500000
+DEBUG | ??:??:?? 167 [RadioIf] rx_snr found in packet. Setting tx delay:1105
+INFO  | ??:??:?? 167 [Router] Packet History - insert: Reusing slot aged 1.852s TRACE MATCHED PACKET
+DEBUG | ??:??:?? 167 [Router] Ignore dupe incoming msg (id=0x80b17b9c fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8.25 rxRSSI=-25 hopStar
+DEBUG | ??:??:?? 167 [Router] cancelSending id=0x80b17b9c, removed=1
+DEBUG | ??:??:?? 167 [Router] Incoming msg was filtered from 0x7c70da02
+INFO  | ??:??:?? 181 [DeviceTelemetry] Send: air_util_tx=0.039083, channel_utilization=2.003333, battery_level=101, voltage=-0.001000, uptime=181
+DEBUG | ??:??:?? 181 [DeviceTelemetry] Partially randomized packet id 118024855
+DEBUG | ??:??:?? 181 [DeviceTelemetry] updateTelemetry LOCAL
+DEBUG | ??:??:?? 181 [DeviceTelemetry] Node status update: 5 online, 5 total
+INFO  | ??:??:?? 181 [DeviceTelemetry] Send packet to phone
+INFO  | ??:??:?? 181 Tell client we have new packets 13
+DEBUG | ??:??:?? 181 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 181 [Serial] phone downloaded packet (id=0x0708ea97 fr=0x6c743130 to=0xffffffff, transport = 0, WantAck=0, HopLim=3 Ch=0x0 Portnum=67 priority=10)
+INFO  | ??:??:?? 241 [DeviceTelemetry] Send: air_util_tx=0.039083, channel_utilization=0.000000, battery_level=101, voltage=-0.001000, uptime=241
+DEBUG | ??:??:?? 241 [DeviceTelemetry] Partially randomized packet id 2686243480
+DEBUG | ??:??:?? 241 [DeviceTelemetry] updateTelemetry LOCAL
+DEBUG | ??:??:?? 241 [DeviceTelemetry] Node status update: 5 online, 5 total
+INFO  | ??:??:?? 241 [DeviceTelemetry] Send packet to phone
+INFO  | ??:??:?? 241 Tell client we have new packets 14
+DEBUG | ??:??:?? 241 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 241 [Serial] phone downloaded packet (id=0xa01cd298 fr=0x6c743130 to=0xffffffff, transport = 0, WantAck=0, HopLim=3 Ch=0x0 Portnum=67 priority=10)
+DEBUG | ??:??:?? 285 [RadioIf] Corrected frequency offset: 241.172485
+DEBUG | ??:??:?? 285 [RadioIf] Lora RX (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 0, WantAck=0, HopLim=2 Ch=0xec encrypted len=50 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 285 [RadioIf] Packet RX: 321ms
+INFO  | ??:??:?? 285 [Router] Packet History - insert: Using new slot @uptime 285.524s TRACE NEW
+DEBUG | ??:??:?? 285 [Router] Use channel 0 (hash 0xec)
+DEBUG | ??:??:?? 285 [Router] Use AES256 key!
+DEBUG | ??:??:?? 285 [Router] decoded message (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 285 [Router] handleReceived(REMOTE) (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay=
+DEBUG | ??:??:?? 285 [Router] Module 'DeviceTelemetry' wantsPacket=1
+INFO  | ??:??:?? 285 [Router] Received DeviceTelemetry from=0x7c70da02, id=0xb185a79d, portnum=67, payloadlen=28
+INFO  | ??:??:?? 285 [Router] (Received from da02): air_util_tx=0.541194, channel_utilization=0.000000, battery_level=93, voltage=4.057000
+DEBUG | ??:??:?? 285 [Router] updateTelemetry REMOTE node=0x7c70da02 
+DEBUG | ??:??:?? 285 [Router] Node status update: 5 online, 5 total
+DEBUG | ??:??:?? 285 [Router] Module 'DeviceTelemetry' considered
+DEBUG | ??:??:?? 285 [Router] Module 'routing' wantsPacket=1
+DEBUG | ??:??:?? 285 [Router] Routing sniffing (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay=0x2)
+INFO  | ??:??:?? 285 [Router] Rebroadcast received message coming from 2
+INFO  | ??:??:?? 285 [Router] Packet History - insert: Reusing slot aged 0.145s TRACE MATCHED PACKET
+DEBUG | ??:??:?? 285 [Router] Use AES256 key!
+DEBUG | ??:??:?? 285 [Router] enqueue for send (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=50 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay
+DEBUG | ??:??:?? 285 [Router] txGood=4,txRelay=2,rxGood=14,rxBad=0
+DEBUG | ??:??:?? 285 [Router] rx_snr found. hop_limit:1 rx_snr:8.500000
+DEBUG | ??:??:?? 285 [Router] rx_snr found in packet. Setting tx delay:697
+DEBUG | ??:??:?? 285 [Router] Delivering rx packet (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay=0x
+DEBUG | ??:??:?? 285 [Router] Update DB node 0x7c70da02, rx_time=0
+INFO  | ??:??:?? 285 [Router] Sort took 0 milliseconds
+DEBUG | ??:??:?? 285 [Router] Forwarding to phone (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay=0x2
+DEBUG | ??:??:?? 285 [Router] Module 'routing' considered
+INFO  | ??:??:?? 285 Tell client we have new packets 15
+DEBUG | ??:??:?? 285 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 285 [Serial] phone downloaded packet (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8.5 rxRSSI=-42 hopStart=2 relay
+DEBUG | ??:??:?? 285 [RadioIf] Corrected frequency offset: 257.949707
+DEBUG | ??:??:?? 285 [RadioIf] Lora RX (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 0, WantAck=0, HopLim=2 Ch=0xec encrypted len=39 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 285 [RadioIf] Packet RX: 280ms
+DEBUG | ??:??:?? 285 [RadioIf] rx_snr found. hop_limit:1 rx_snr:8.500000
+DEBUG | ??:??:?? 285 [RadioIf] rx_snr found in packet. Setting tx delay:2261
+INFO  | ??:??:?? 285 [Router] Packet History - insert: Using new slot @uptime 285.867s TRACE NEW
+DEBUG | ??:??:?? 285 [Router] Use channel 0 (hash 0xec)
+DEBUG | ??:??:?? 285 [Router] Use AES256 key!
+DEBUG | ??:??:?? 285 [Router] decoded message (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 285 [Router] handleReceived(REMOTE) (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0x
+DEBUG | ??:??:?? 285 [Router] Module 'DeviceTelemetry' wantsPacket=1
+INFO  | ??:??:?? 285 [Router] Received DeviceTelemetry from=0x7c70da02, id=0x9b7a4b9e, portnum=67, payloadlen=17
+DEBUG | ??:??:?? 285 [Router] Module 'DeviceTelemetry' considered
+DEBUG | ??:??:?? 285 [Router] Module 'routing' wantsPacket=1
+DEBUG | ??:??:?? 285 [Router] Routing sniffing (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0x2)
+INFO  | ??:??:?? 285 [Router] Rebroadcast received message coming from 2
+INFO  | ??:??:?? 285 [Router] Packet History - insert: Reusing slot aged 0.124s TRACE MATCHED PACKET
+DEBUG | ??:??:?? 285 [Router] Use AES256 key!
+DEBUG | ??:??:?? 286 [Router] enqueue for send (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0
+DEBUG | ??:??:?? 286 [Router] txGood=4,txRelay=2,rxGood=15,rxBad=0
+DEBUG | ??:??:?? 286 [Router] rx_snr found. hop_limit:1 rx_snr:8.500000
+DEBUG | ??:??:?? 286 [Router] rx_snr found in packet. Setting tx delay:1921
+DEBUG | ??:??:?? 286 [Router] Delivering rx packet (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 286 [Router] Update DB node 0x7c70da02, rx_time=0
+DEBUG | ??:??:?? 286 [Router] Forwarding to phone (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0x2)
+DEBUG | ??:??:?? 286 [Router] Module 'routing' considered
+INFO  | ??:??:?? 286 Tell client we have new packets 16
+DEBUG | ??:??:?? 286 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 286 [Serial] phone downloaded packet (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=2 Ch=0x0 Portnum=67 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0
+DEBUG | ??:??:?? 287 [RadioIf] Corrected frequency offset: 1046.478882
+DEBUG | ??:??:?? 287 [RadioIf] Lora RX (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=50 rxSNR=7.75 rxRSSI=-27 hopStart=2 relay=0xc4)
+DEBUG | ??:??:?? 287 [RadioIf] Packet RX: 321ms
+DEBUG | ??:??:?? 287 [RadioIf] rx_snr found. hop_limit:1 rx_snr:8.500000
+DEBUG | ??:??:?? 287 [RadioIf] rx_snr found in packet. Setting tx delay:1666
+INFO  | ??:??:?? 287 [Router] Packet History - insert: Reusing slot aged 2.151s TRACE MATCHED PACKET
+DEBUG | ??:??:?? 287 [Router] Ignore dupe incoming msg (id=0xb185a79d fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=50 rxSNR=7.75 rxRSSI=-27 hopStar
+DEBUG | ??:??:?? 287 [Router] cancelSending id=0xb185a79d, removed=1
+DEBUG | ??:??:?? 287 [Router] Incoming msg was filtered from 0x7c70da02
+DEBUG | ??:??:?? 289 [RadioIf] Started Tx (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8 rxRSSI=-41 hopStart=2 relay=0x30 pr
+DEBUG | ??:??:?? 289 [RadioIf] 0 packets remain in the TX queue
+DEBUG | ??:??:?? 289 [RadioIf] Packet TX: 280ms
+DEBUG | ??:??:?? 289 [RadioIf] Completed sending (id=0x9b7a4b9e fr=0x7c70da02 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0xec encrypted len=39 rxSNR=8 rxRSSI=-41 hopStart=2 relay=
+INFO  | ??:??:?? 301 [DeviceTelemetry] Send: air_util_tx=0.046861, channel_utilization=2.003333, battery_level=101, voltage=-0.001000, uptime=301
+DEBUG | ??:??:?? 301 [DeviceTelemetry] Partially randomized packet id 4088891033
+DEBUG | ??:??:?? 301 [DeviceTelemetry] updateTelemetry LOCAL
+DEBUG | ??:??:?? 301 [DeviceTelemetry] Node status update: 5 online, 5 total
+INFO  | ??:??:?? 301 [DeviceTelemetry] Send packet to phone
+INFO  | ??:??:?? 301 Tell client we have new packets 17
+DEBUG | ??:??:?? 301 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 301 [Serial] phone downloaded packet (id=0xf3b78699 fr=0x6c743130 to=0xffffffff, transport = 0, WantAck=0, HopLim=3 Ch=0x0 Portnum=67 priority=10)
+DEBUG | ??:??:?? 345 [RadioIf] Corrected frequency offset: 1109.393433
+DEBUG | ??:??:?? 345 [RadioIf] Lora RX (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0x28 encrypted len=35 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay=0xc4)
+DEBUG | ??:??:?? 345 [RadioIf] Packet RX: 260ms
+INFO  | ??:??:?? 345 [Router] Packet History - insert: Using new slot @uptime 345.388s TRACE NEW
+DEBUG | ??:??:?? 345 [Router] Use channel 1 (hash 0x28)
+DEBUG | ??:??:?? 345 [Router] Use AES256 key!
+DEBUG | ??:??:?? 345 [Router] decoded message (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x1 Portnum=1 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay=0xc4)
+DEBUG | ??:??:?? 345 [Router] handleReceived(REMOTE) (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x1 Portnum=1 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay=
+DEBUG | ??:??:?? 345 [Router] Module 'text' wantsPacket=1
+INFO  | ??:??:?? 345 [Router] Received text msg from=0xbb8106c4, id=0x3a5f05e6, msg=####otest_all
+DEBUG | ??:??:?? 345 [Router] Module 'text' considered
+DEBUG | ??:??:?? 345 [Router] Module 'ExternalNotificationModule' wantsPacket=1
+INFO  | ??:??:?? 345 [Router] External Notification Module Disabled or muted
+DEBUG | ??:??:?? 345 [Router] Module 'ExternalNotificationModule' considered
+DEBUG | ??:??:?? 345 [Router] Module 'routing' wantsPacket=1
+DEBUG | ??:??:?? 345 [Router] Routing sniffing (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x1 Portnum=1 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay=0xc4)
+INFO  | ??:??:?? 345 [Router] Rebroadcast received message coming from c4
+INFO  | ??:??:?? 345 [Router] Packet History - insert: Reusing slot aged 0.138s TRACE MATCHED PACKET
+DEBUG | ??:??:?? 345 [Router] Use AES256 key!
+DEBUG | ??:??:?? 345 [Router] enqueue for send (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0x28 encrypted len=35 rxSNR=7.75 rxRSSI=-26 hopStart=1 rela
+DEBUG | ??:??:?? 345 [Router] txGood=5,txRelay=3,rxGood=17,rxBad=0
+DEBUG | ??:??:?? 345 [Router] rx_snr found. hop_limit:0 rx_snr:7.750000
+DEBUG | ??:??:?? 345 [Router] rx_snr found in packet. Setting tx delay:595
+DEBUG | ??:??:?? 345 [Router] Delivering rx packet (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x1 Portnum=1 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay=0x
+DEBUG | ??:??:?? 345 [Router] Update DB node 0xbb8106c4, rx_time=0
+INFO  | ??:??:?? 345 [Router] Sort took 0 milliseconds
+DEBUG | ??:??:?? 345 [Router] Forwarding to phone (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x1 Portnum=1 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay=0xc
+DEBUG | ??:??:?? 345 [Router] Module 'routing' considered
+INFO  | ??:??:?? 345 Tell client we have new packets 18
+DEBUG | ??:??:?? 345 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | ??:??:?? 345 [Serial] phone downloaded packet (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x1 Portnum=1 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay
+DEBUG | ??:??:?? 346 [RadioIf] Started Tx (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0x28 encrypted len=35 rxSNR=7.75 rxRSSI=-26 hopStart=1 relay=0x30
+DEBUG | ??:??:?? 346 [RadioIf] 0 packets remain in the TX queue
+DEBUG | ??:??:?? 346 [RadioIf] Packet TX: 260ms
+DEBUG | ??:??:?? 346 [RadioIf] Completed sending (id=0x3a5f05e6 fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0x28 encrypted len=35 rxSNR=7.75 rxRSSI=-26 hopStart=1 rel
+
+
+[meshtastic-sender portnum=256]
+
+DEBUG | 14:09:57 301 [DeviceTelemetry] upded from 0xbb8106c4
+DEBUG | 14:31:50 1613 [Serial] PACKET FROM PHONE (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x0 Portnum=256 hopStart=1)
+DEBUG | 14:31:50 1613 [Serial] handleReceived(USER) (id=0x19f326ba fr=0x00000000 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113110 hopStart=1)
+DEBUG | 14:31:50 1613 [Serial] Module 'routing' wantsPacket=1
+DEBUG | 14:31:50 1613 [Serial] Routing sniffing (id=0x19f326ba fr=0x00000000 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113110 hopStart=1)
+DEBUG | 14:31:50 1613 [Serial] Module 'routing' considered
+DEBUG | 14:31:50 1613 [Serial] Setting next retransmission in 5972 msecs: 
+DEBUG | 14:31:50 1613 [Serial]  (id=0x19f326ba fr=0x00000000 to=0xffffffff, transport = 0, WantAck=1, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113110 hopStart=1)
+INFO  | 14:31:50 1613 [Serial] Packet History - insert: Using new slot @uptime 1613.968s TRACE NEW
+DEBUG | 14:31:50 1613 [Serial] Use AES256 key!
+DEBUG | 14:31:50 1613 [Serial] enqueue for send (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=36 rxtime=1786113110 hopStart=1 relay=0x
+DEBUG | 14:31:50 1614 [Serial] txGood=26,txRelay=16,rxGood=60,rxBad=0
+DEBUG | 14:31:50 1614 [Serial] FromRadio=STATE_SEND_PACKETS
+INFO  | 14:31:50 1614 Tell client we have new packets 88
+DEBUG | 14:31:50 1614 [RadioIf] Started Tx (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=36 rxtime=1786113110 hopStart=1 relay=0xc4 pri
+DEBUG | 14:31:50 1614 [RadioIf] 0 packets remain in the TX queue
+DEBUG | 14:31:51 1614 [RadioIf] Packet TX: 260ms
+DEBUG | 14:31:51 1614 [RadioIf] Completed sending (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=36 rxtime=1786113110 hopStart=1 relay=0
+DEBUG | 14:31:53 1616 [RadioIf] Corrected frequency offset: -706.740234
+DEBUG | 14:31:53 1616 [RadioIf] Lora RX (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=0 Ch=0xec encrypted len=36 rxSNR=7 rxRSSI=-40 hopStart=1 relay=0x2)
+DEBUG | 14:31:53 1616 [RadioIf] Packet RX: 260ms
+DEBUG | 14:31:53 1616 [Router] Rx someone rebroadcasting for us (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0xec encrypted len=36 rxSNR=7 rxRSSI=-40 ho
+DEBUG | 14:31:53 1616 [Router] Generate implicit ack
+DEBUG | 14:31:53 1616 [Router] Partially randomized packet id 3352678464
+DEBUG | 14:31:53 1616 [Router] Enqueued local (id=0xc7d5d040 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x0 Portnum=5 requestId=19f326ba rxtime=1786113113 priority=1
+INFO  | 14:31:53 1616 [Router] Packet History - insert: Reusing slot aged 2.698s TRACE MATCHED PACKET
+DEBUG | 14:31:53 1616 [Router] Ignore dupe incoming msg (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0xec encrypted len=36 rxSNR=7 rxRSSI=-40 hopStart=1
+DEBUG | 14:31:53 1616 [Router] cancelSending id=0x19f326ba, removed=0
+DEBUG | 14:31:53 1616 [Router] Incoming msg was filtered from 0xbb8106c4
+DEBUG | 14:31:53 1616 [Router] Rx someone rebroadcasting for us (id=0xc7d5d040 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x0 Portnum=5 requestId=19f326ba rxtime=178
+DEBUG | 14:31:53 1616 [Router] Didn't find pending packet
+INFO  | 14:31:53 1616 [Router] Packet History - insert: Using new slot @uptime 1616.736s TRACE NEW
+DEBUG | 14:31:53 1616 [Router] handleReceived(REMOTE) (id=0xc7d5d040 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x0 Portnum=5 requestId=19f326ba rxtime=1786113113 pr
+DEBUG | 14:31:53 1616 [Router] Module 'routing' wantsPacket=1
+INFO  | 14:31:53 1616 [Router] Received routing from=0xbb8106c4, id=0xc7d5d040, portnum=5, payloadlen=2
+DEBUG | 14:31:53 1616 [Router] Routing sniffing (id=0xc7d5d040 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x0 Portnum=5 requestId=19f326ba rxtime=1786113113 priority
+DEBUG | 14:31:53 1616 [Router] Received a ACK for 0x19f326ba, stopping retransmissions
+DEBUG | 14:31:53 1616 [Router] Delivering rx packet (id=0xc7d5d040 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x0 Portnum=5 requestId=19f326ba rxtime=1786113113 prio
+DEBUG | 14:31:53 1616 [Router] Ignore update from self
+DEBUG | 14:31:53 1616 [Router] Forwarding to phone (id=0xc7d5d040 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x0 Portnum=5 requestId=19f326ba rxtime=1786113113 prior
+DEBUG | 14:31:53 1616 [Router] Module 'routing' considered
+INFO  | 14:31:53 1616 Tell client we have new packets 89
+DEBUG | 14:31:53 1616 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:31:53 1616 [Serial] phone downloaded packet (id=0xc7d5d040 fr=0xbb8106c4 to=0xbb8106c4, transport = 0, WantAck=0, HopLim=0 Ch=0x0 Portnum=5 requestId=19f326ba rxtime=1786113113 p
+INFO  | 14:32:00 1623 [DeviceTelemetry] Send: air_util_tx=0.228972, channel_utilization=0.866667, battery_level=101, voltage=-0.001000, uptime=1623
+DEBUG | 14:32:00 1623 [DeviceTelemetry] Partially randomized packet id 420079681
+DEBUG | 14:32:00 1623 [DeviceTelemetry] updateTelemetry LOCAL
+DEBUG | 14:32:00 1623 [DeviceTelemetry] Node status update: 2 online, 3 total
+INFO  | 14:32:00 1623 [DeviceTelemetry] Send packet to phone
+INFO  | 14:32:00 1623 Tell client we have new packets 90
+DEBUG | 14:32:00 1623 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:32:00 1623 [Serial] phone downloaded packet (id=0x1909e841 fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0x0 Portnum=67 rxtime=1786113120 priority=10)
+
+
+[meshtastic-receiver portnum=256]
+DEBUG | ??:??:?? 361 [DeviceTelemetry] updopLim=3 Ch=0x0 Portnum=67 rxtime=1786113065 priority=10)
+DEBUG | 14:31:51 1669 [RadioIf] Corrected frequency offset: 1189.085205
+DEBUG | 14:31:51 1669 [RadioIf] Lora RX (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=1 Ch=0xec encrypted len=36 rxSNR=7.75 rxRSSI=-29 hopStart=1 relay=0xc4)
+DEBUG | 14:31:51 1669 [RadioIf] Packet RX: 260ms
+INFO  | 14:31:51 1669 [Router] Packet History - insert: Using new slot @uptime 1669.235s TRACE NEW
+DEBUG | 14:31:51 1669 [Router] Use channel 0 (hash 0xec)
+DEBUG | 14:31:51 1669 [Router] Use AES256 key!
+DEBUG | 14:31:51 1669 [Router] decoded message (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113111 rxSNR=7.75 rxRSSI=-29 hopS
+DEBUG | 14:31:51 1669 [Router] handleReceived(REMOTE) (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113111 rxSNR=7.75 rxRSSI=-
+DEBUG | 14:31:51 1669 [Router] Module 'routing' wantsPacket=1
+DEBUG | 14:31:51 1669 [Router] Routing sniffing (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113111 rxSNR=7.75 rxRSSI=-29 hop
+INFO  | 14:31:51 1669 [Router] Rebroadcast received message coming from c4
+INFO  | 14:31:51 1669 [Router] Packet History - insert: Reusing slot aged 0.089s TRACE MATCHED PACKET
+DEBUG | 14:31:51 1669 [Router] Use AES256 key!
+DEBUG | 14:31:51 1669 [Router] enqueue for send (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0xec encrypted len=36 rxtime=1786113111 rxSNR=7.75 rxRSSI=-
+DEBUG | 14:31:51 1669 [Router] txGood=28,txRelay=20,rxGood=65,rxBad=0
+DEBUG | 14:31:51 1669 [Router] rx_snr found. hop_limit:0 rx_snr:7.750000
+DEBUG | 14:31:51 1669 [Router] rx_snr found in packet. Setting tx delay:1904
+DEBUG | 14:31:51 1669 [Router] Delivering rx packet (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113111 rxSNR=7.75 rxRSSI=-29
+DEBUG | 14:31:51 1669 [Router] Update DB node 0xbb8106c4, rx_time=1786113111
+INFO  | 14:31:51 1669 [Router] Sort took 0 milliseconds
+DEBUG | 14:31:51 1669 [Router] Forwarding to phone (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113111 rxSNR=7.75 rxRSSI=-29 
+DEBUG | 14:31:51 1669 [Router] Module 'routing' considered
+INFO  | 14:31:51 1669 Tell client we have new packets 87
+DEBUG | 14:31:51 1669 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:31:51 1669 [Serial] phone downloaded packet (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=1 Ch=0x0 Portnum=256 rxtime=1786113111 rxSNR=7.75 rxRSSI=
+WARN  | 14:31:53 1671 [RadioIf] Can not send yet, busyRx
+DEBUG | 14:31:53 1671 [RadioIf] rx_snr found. hop_limit:0 rx_snr:7.750000
+DEBUG | 14:31:53 1671 [RadioIf] rx_snr found in packet. Setting tx delay:969
+DEBUG | 14:31:53 1671 [RadioIf] Corrected frequency offset: 492.830719
+DEBUG | 14:31:53 1671 [RadioIf] Lora RX (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 0, WantAck=0, HopLim=0 Ch=0xec encrypted len=36 rxSNR=8 rxRSSI=-43 hopStart=1 relay=0x2)
+DEBUG | 14:31:53 1671 [RadioIf] Packet RX: 260ms
+DEBUG | 14:31:53 1671 [RadioIf] rx_snr found. hop_limit:0 rx_snr:7.750000
+DEBUG | 14:31:53 1671 [RadioIf] rx_snr found in packet. Setting tx delay:1377
+INFO  | 14:31:53 1671 [Router] Packet History - insert: Reusing slot aged 2.155s TRACE MATCHED PACKET
+DEBUG | 14:31:53 1671 [Router] Ignore dupe incoming msg (id=0x19f326ba fr=0xbb8106c4 to=0xffffffff, transport = 1, WantAck=0, HopLim=0 Ch=0xec encrypted len=36 rxSNR=8 rxRSSI=-43 hopStart=1
+DEBUG | 14:31:53 1671 [Router] cancelSending id=0x19f326ba, removed=1
+DEBUG | 14:31:53 1671 [Router] Incoming msg was filtered from 0xbb8106c4
+INFO  | 14:32:05 1683 [DeviceTelemetry] Send: air_util_tx=0.240667, channel_utilization=0.866667, battery_level=101, voltage=-0.001000, uptime=1683
+DEBUG | 14:32:05 1683 [DeviceTelemetry] Partially randomized packet id 2823629493
+DEBUG | 14:32:05 1683 [DeviceTelemetry] updateTelemetry LOCAL
+DEBUG | 14:32:05 1683 [DeviceTelemetry] Node status update: 2 online, 5 total
+INFO  | 14:32:05 1683 [DeviceTelemetry] Send packet to phone
+INFO  | 14:32:05 1683 Tell client we have new packets 88
+DEBUG | 14:32:05 1683 [Serial] FromRadio=STATE_SEND_PACKETS
+DEBUG | 14:32:05 1683 [Serial] phone downloaded packet (id=0xa84d2ab5 fr=0x6c743130 to=0xffffffff, transport = 0, WantAck=0, HopLim=3 Ch=0x0 Portnum=67 rxtime=1786113125 priority=10)

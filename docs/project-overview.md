@@ -1,9 +1,17 @@
 # Project Overview — Meshtastic TestBed Platform
 
 > Living project document. Must never describe a state older than 2 sessions back.
-> Owned by `doc-keeper`. Last updated: 2026-07-08 (session: repo rename + reorg to
-> `meshtastic-testbed-platform`, San Joaquín testbed docs, RPi+5G gateway plan,
-> radio inventory schema).
+> Owned by `doc-keeper`. Last updated: 2026-08-06 (session: MQTT→InfluxDB ingestion
+> gap for the `message`/`pdr` topics, proxy frame format verified against the
+> firmware contract, three-measurement schema).
+>
+> **Known gaps in this document** (flagged 2026-08-06): the containerised gateway
+> receiver from the 2026-07-24 session is now covered by
+> [`diagrams/container-topology.md`](diagrams/container-topology.md), but the
+> ASCII pipeline diagram below and the directory tree still predate it
+> (`src/gateway/Dockerfile`, `GATEWAY_SERIAL_PORT`). The
+> `src/tools/field_testing/` subtree is missing from the tree entirely, and
+> ADR-0001 is not referenced anywhere.
 
 ## Project identity
 
@@ -45,12 +53,16 @@ Early / Experimental — all three phases of the roadmap are in flight:
       `src_id`/`dst_id` and published as metadata on `.../message`
 - [x] Cadence-based PDR tracking per `(node, flow)` from the known broadcast
       intervals in `mesh_config.json` (no sequence numbers needed)
+- [x] Proxy frame format verified against the firmware **source and a live
+      capture**: two layouts keyed by portnum, ids are big-endian uint32 phone
+      numbers published in decimal (the proxy repo's own docs say little-endian
+      and are wrong — see memory `proxy-frame-wire-format`)
+- [x] `message` and `pdr` topics actually ingested — Telegraf subscribed to
+      neither between 2026-07-31 and 2026-08-06, so both were dropped
 - [ ] `usbPower` / `isCharging` fields under debug (reported as 0 / false)
 - [ ] SHT4X I2C reliability issue unresolved (see Known constraints)
-- [ ] Proxy frame endianness unverified against the `meshtastic-ble-proxy` firmware
-      (assumed little-endian; a wrong byte order silently mirrors src/dst ids)
-- [ ] Message-level PDR blocked on an app-level `seq` counter in the proxy frame
-      (parser is ready behind `MeshReceiver.FRAME_HAS_SEQ`)
+- [ ] Message-level PDR needs a TX-side source to join against `pkt_id`
+      (see Known constraints — the proxy's own log is unusable today)
 
 ---
 
@@ -102,10 +114,47 @@ MQTT topics under `meshtastic-testbed/<node-label>/`:
 | `device` | device metrics (battery, voltage, channel/air utilisation, uptime) + PDR fields |
 | `environment` | temperature, humidity + PDR fields |
 | `position` | latitude, longitude, altitude + PDR fields |
-| `message` | proxy `PRIVATE_APP` frame metadata: `src_id`, `dst_id`, `fw_ver`, `seq`, sizes, link quality. No PDR (messages have no cadence). Content is opt-in via `capture_content` |
+| `message` | proxy frame metadata: `portnum`, `src_id`, `dst_id`, `fw_ver`, `pkt_id`, sizes, link quality. No PDR (messages have no cadence). Content is opt-in via `capture_content` |
 | `pdr` | losses inferred while a flow was silent — the only way a fully dead node becomes visible |
 
-InfluxDB database: `cpsrtc_meshtastic_telemetry`, measurement: `mqtt_consumer`.
+> **Diagramas** (Mermaid, versionados, se renderizan en GitHub):
+> [`diagrams/container-topology.md`](diagrams/container-topology.md) — los cinco
+> servicios del compose, puertos, volúmenes y los dos caminos de datos del dashboard.
+> [`diagrams/database-ingestion-schema.md`](diagrams/database-ingestion-schema.md)
+> — camino completo del paquete a la measurement, más el esquema de tags/fields.
+> [`diagrams/data-flow-measurement-points.md`](diagrams/data-flow-measurement-points.md)
+> — los tres puntos de medición y qué pérdida atribuye cada tramo.
+
+InfluxDB database: `cpsrtc_meshtastic_telemetry`, across **three measurements**:
+
+| Measurement | Fed by | Tags |
+|---|---|---|
+| `mqtt_consumer` | `position`, `device`, `environment` | `node_id`, `node_label`, `topic` |
+| `proxy_message` | `message` | `node_id`, `node_label`, `portnum`, `src_id`, `dst_id` |
+| `pdr` | `pdr` | `node_label`, `flow`, `source` |
+
+The split is not cosmetic. `message` carries `rssi`/`snr`/`hop` for the same
+`node_id` as telemetry but at a phone-driven cadence, and `monitor/utils.py`
+filters those charts by `node_id` alone — one shared measurement would silently
+interleave two populations. `pkt_id` deliberately stays a *field*: it is unique
+per packet and would grow the series cardinality without bound as a tag.
+
+### Proxy frame format
+
+Two layouts, selected by portnum (contract:
+`../meshtastic-ble-proxy/docs/readings/client-integration.md` §4.1):
+
+```
+portnum=PRIVATE_APP (256)     [VERSION:1][SRC_ID:4][DST_ID:4][content:N]   routed unicast
+portnum=TEXT_MESSAGE_APP (1)  [VERSION:1][SRC_ID:4][content:N]             broadcast, no dst
+```
+
+`SRC_ID`/`DST_ID` are 4-byte big-endian `uint32` phone identifiers (national
+number without country code), published in decimal so they match the proxy's own
+log and the phone's NODE_REG write — they are **not** Meshtastic node ids. The
+parser validates the `VERSION` byte and reports anything other than `0x01` as
+malformed, which is how the proposed v2 (a 2-byte `seq` at offset 9, not
+implemented) will be caught instead of misread.
 
 ### PDR measurement
 
@@ -260,3 +309,19 @@ meshtastic-testbed-platform/
   two sources before the next release.
 
 - **No license.** Project is currently unlicensed. License decision pending.
+
+- **Message-level PDR has no TX-side source yet.** Telemetry PDR is inferred
+  from silence against a known cadence; messages are aperiodic, so silence
+  carries no information and the ratio needs ground truth for what was *sent*.
+  The join key exists (`pkt_id`, recorded on RX), but the intended TX source —
+  the proxy's own log over the nRF52840 VCOM — is unusable: `proxy_id_to_str()`
+  in `../meshtastic-ble-proxy` reads 16 bytes from a 4-byte array, so the
+  src/dst it prints are out-of-bounds garbage. That is a firmware-side fix in a
+  separate repo. Note also that InfluxQL cannot join two measurements on a field
+  value, so the reconciliation must happen upstream (a subscriber to both
+  streams) with the DB only storing the resulting metric.
+
+- **Telegraf config is untested.** The 94 unit tests cover the publisher, not
+  the ingestion path — which is why `message`/`pdr` were published to Mosquitto
+  and dropped for six days without anything failing. An end-to-end test that
+  publishes a synthetic payload and queries InfluxDB would close the loop.

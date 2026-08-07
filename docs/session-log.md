@@ -20,6 +20,276 @@ Entry format:
 
 ---
 
+## 2026-08-06 — Ingesta de `message`/`pdr` + verificación del frame del proxy
+**Time:** (aprox)
+**User request:** `/start`, luego higiene del working tree, luego diseño de dónde
+almacenar la mensajería de texto y cómo medir su PDR. El owner pidió implementar
+él mismo con directrices, y que la revisión, los tests y la documentación las
+hiciera el orquestador.
+
+### Actions taken
+- **Higiene:** `psks.txt` al `.gitignore` (verificado: nunca estuvo en la
+  historia); eliminada `TELEMETRY_DEV_UPDATE_INTERVAL` de
+  `src/proxy/configure_params.py` (constante muerta que violaba
+  `pdr-cadence-single-source`); `.uf2` de firmware 2.7.26 staged.
+- **Defecto encontrado:** `telegraf.conf` sólo se suscribía a
+  `position`/`device`/`environment`. Los tópicos `message` y `pdr`, agregados el
+  07-31, se publicaban a Mosquitto y **nadie los consumía** — seis días de datos
+  perdidos, incluida la visibilidad de nodos muertos que es el propósito del
+  tópico `pdr`.
+- **Verificación contra el firmware:** se leyó
+  `../meshtastic-ble-proxy/{src/proxy_protocol.{c,h}, src/ble_gatt.c,
+  docs/readings/client-integration.md}` en vez de seguir asumiendo el formato.
+- `telegraf.conf`: dos bloques nuevos con `name_override` (`proxy_message`,
+  `pdr`), tags definidos, `pkt_id` explícitamente como field.
+- `mesh_receiver.py`: parser con rama por portnum, validación del byte VERSION,
+  render decimal de los ids, eliminado todo el aparato de `seq`.
+- `tests/test_mesh_receiver.py`: helpers para ambos formatos, esperados nuevos,
+  clase `TestBroadcastMessageFrame` (5 casos), test de rechazo por versión y test
+  de regresión `src_id != dst_id`. **88 → 94 tests, todos en verde.**
+- Nueva memoria `proxy-frame-wire-format`; `data-contract-gateway-web` extendida
+  con las tres measurements.
+
+### Decisions
+- **Tres measurements en vez de una.** `proxy_message` no puede caer en
+  `mqtt_consumer`: trae `rssi`/`snr`/`hop` para el mismo `node_id` que la
+  telemetría pero a cadencia dirigida por teléfonos, y `monitor/utils.py` filtra
+  esos charts sólo por `node_id`. Compartir measurement mezclaría dos poblaciones
+  sin error visible.
+- **`pkt_id` como field, nunca tag** — único por paquete. Y como InfluxQL no
+  puede hacer join entre measurements por valor de field, el PDR de mensajería se
+  calcula aguas arriba y la base sólo guarda el resultado; mismo patrón que ya usa
+  `CadencePdrTracker`.
+- **Dos estimadores de PDR distintos, a propósito.** La telemetría es periódica →
+  el silencio es información. La mensajería es aperiódica → hace falta ground
+  truth de TX. No hay estimador único mejor; la disciplina que los mantiene
+  coherentes es que ambos emitan la misma forma de métrica, distinguidos por
+  `flow`/`source`. No son comparables entre sí: uno es inferencia con ±1 paquete
+  por hueco, el otro sería exacto.
+- **`proxy_id` en decimal.** Es un `uint32` little-endian (número telefónico sin
+  código de país) que el proxy loguea como `+56<uint32>`. El render anterior
+  `f"!{src:08x}"` lo hacía parecer un node id de Meshtastic y no coincidía con
+  ninguna otra fuente — y es valor de tag, así que cambiarlo después habría
+  partido todas las series históricas.
+- **Validación del byte VERSION en lugar de un flag `FRAME_HAS_SEQ`.** El v2 con
+  `seq` está sólo *propuesto* en el repo del proxy; el byte de versión ya existe
+  para señalar cambios de formato, así que un v2 se reporta como `malformed` en
+  vez de misparsearse.
+- **Rechazado:** guardar el contenido de los mensajes en InfluxDB. Metadata sí,
+  contenido no — es tráfico real de personas, la base se exporta y comparte, y no
+  hay historia de retención ni redacción para eso. `capture_content` sigue en
+  `False`.
+- **RPi en el nodo proxy: sí, pero no por la energía.** Un hub USB con fuente
+  resuelve los dos puertos por 15 dólares. La justifican el ground truth de TX y
+  la referencia de masa común que exige el enlace UART nordic↔LiLyGO.
+
+### Outcomes
+- Ingesta reparada; el pipeline vuelve a persistir los cinco tópicos.
+- Formato del frame verificado, no asumido. Se cerró el ítem "endianness
+  unverified" abierto desde el 07-31: **no había desajuste** — el parser original
+  era correcto y el diagnóstico intermedio del orquestador estuvo equivocado.
+- Soporte para frames broadcast (`TEXT_MESSAGE_APP`, header de 5 bytes), que
+  antes se descartaban en el dispatch.
+- 94 tests en verde con `.venv/bin/python -m unittest discover -s tests -t .`
+  (el `pytest` global no ve el módulo `meshtastic`; hay que usar el venv).
+
+### Diseño de la RPi del proxy (mismo día, tras los diagramas)
+- Pregunta del owner: nunca se había definido **qué corre** en la Pi. Al buscar la
+  respuesta se revisó el log del firmware del proxy y apareció el hallazgo que
+  cambia la prioridad: **P1 sirve hoy aunque los ids estén rotos.** El bug de
+  `proxy_id_to_str` sólo arruina `src`/`dst`; el resto del log es operativo y hoy
+  es invisible — `TX queue full — ToRadio dropped` (pérdida *medida*, no inferida,
+  justo en el tramo proxy→nodo), `RX overrun`, censo de conexiones BLE, `No free
+  connection slot`, reboots del nodo, `bad header — broadcast fallback`.
+- Owner definió el backhaul: **WiFi 5 GHz de la red del edificio (MIDE)**, sin
+  celular. Desacopla los proxies de `gateway-rpi-5g.md`, que es sólo el gateway.
+- **ADR-0002 escrito** (`docs/architecture/ADR-0002-proxy-site-edge-collector.md`):
+  la Pi es un colector de borde, no un segundo pipeline. Corre `proxy-logd`
+  (desbloqueado), `node-tap` (condicionado a test de banco), Mosquitto local en
+  bridge para store-and-forward, y NTP. **El reconciliador TX↔RX NO va en la Pi**
+  — el RX, el broker y la base están en el gateway; la Pi queda como publicador
+  reemplazable.
+- Elevado a precondición, no a follow-up: **habilitar auth en el broker**. Hoy es
+  `allow_anonymous` con `1883` en todas las interfaces; publicar desde la WiFi del
+  edificio lo convierte en un broker MQTT abierto en red compartida. Para un
+  testbed de medición el riesgo es integridad de datos antes que acceso —
+  `_is_valid()` filtra por un `node_id` que viaja dentro del payload que el emisor
+  controla.
+- Rechazado y anotado en el ADR: hub USB alimentado (resuelve el problema
+  declarado y ningún otro), dos cargadores separados (masas flotantes en un enlace
+  UART), reconciliador en la Pi, pipeline completo en el borde, y esperar al `seq`
+  v2 en vez de usar `pkt_id`.
+
+### Continuación 2026-08-07 — el log del nodo destraba el PDR de mensajería
+- **Constraint del firmware:** el owner confirmó que **no se admiten dos
+  instancias del Stream API**. Eso mató el `node-tap` original (un cliente
+  Meshtastic por USB) y con él la vía al `pkt_id` — el PDR de mensajería quedó
+  sin denominador y dependiendo de un cambio de firmware ajeno.
+- **Pregunta del owner que lo resolvió:** ¿sirven los logs propios de Meshtastic
+  en el LiLyGO? Sí, y el constraint no aplica: la consola USB emite **texto
+  plano** mientras nadie hable protobuf por ahí. Es lectura pasiva, no una
+  segunda instancia. Captura guardada en `docs/log-parsing.txt`.
+- Lo que trae esa consola: ciclo de vida completo de TX con el `id` de paquete
+  (`PACKET FROM PHONE` → `enqueue for send` → `Started Tx` → `Completed sending`),
+  que es el mismo `pkt_id` que el gateway ya registra. Tres etapas, así que
+  "entregado pero no transmitido" queda separado de "transmitido y perdido".
+- **F3 cancelado:** Meshtastic ya emite `txGood=…,txRelay=…,rxGood=…,rxBad=…`,
+  contadores monotónicos auto-reparables ante líneas de log perdidas. Era
+  exactamente el diseño que se le iba a pedir al firmware del proxy.
+- **`WantAck=1` en mensajería** (la telemetría es 0): el nodo retransmite hasta
+  el ACK, así que hay que contar **ids únicos** y existen dos ratios distintos
+  (primer intento vs entrega final). Segunda razón por la que el PDR de
+  mensajería y el de telemetría no son comparables entre sí.
+- **Orden de bytes — corrección de una corrección.** Diagnostiqué desajuste,
+  después me retracté citando `client-integration.md` (que dice little-endian), y
+  el owner desconfió. Tenía razón: los cinco sitios del firmware que interpretan
+  el id usan `sys_get_be32()`, incluido el handler de NODE_REG. Confirmado
+  empíricamente con `+56352953967` = `0x1509A66F`, y corroborado por el header de
+  5 bytes visible como `msg=####otest_all` (termina en `0x6F`='o', el byte bajo
+  al final). **En ese repo el código manda sobre los docs** — nos desviaron tres
+  veces: el `seq` inexistente, los 16 bytes de NODE_REG y el endianness.
+- Aplicado: `>BII`/`>BI` en `mesh_receiver.py`, tests a big-endian con el handset
+  real, y `TestProxyIdByteOrder` fijando los bytes exactos contra la captura.
+  **95 tests en verde.**
+- **`PRIVATE_APP` viaja hoy por canal 0**, no por el 1. El owner lo identificó
+  como bug de la app de celular (ahí se construye el MeshPacket). Consecuencia
+  mientras tanto: la mensajería se cifra con la PSK del canal de telemetría.
+  Capturar `channel` sirve además como detector de si el fix llegó.
+- Infraestructura decidida: **tres Pis** (una por sitio de proxy + gateway), la
+  del gateway **corre todo el stack** y por lo tanto **debe bootear desde SSD
+  USB**, no microSD.
+- Documentación actualizada: ADR-0002 (revisión completa), el diagrama de flujo,
+  `gateway-rpi-5g.md` (pregunta abierta resuelta), `project-overview.md` y la
+  memoria `proxy-frame-wire-format`.
+
+### Implementación: captura de `channel` + auth del broker (2026-08-07)
+- **`channel` capturado** con `packet.get("channel", 0)`, propagado a los cuatro
+  handlers. Tag en `proxy_message`, field en `mqtt_consumer` (ahí siempre vale 0).
+  El default explícito no es cosmético: protobuf3 omite los valores por defecto,
+  así que la clave **no viene** para el canal 0 y un `.get()` pelado daría `None`,
+  que Telegraf descarta — el tag desaparecería del grueso del tráfico. Hay un
+  test que verifica primero la ausencia de la clave y después que el payload
+  reporta 0.
+- **Auth del broker** (precondición de ADR-0002): `allow_anonymous false`,
+  `password_file`, `acl_file` con cinco cuentas por rol — `gateway` escribe todo,
+  `p1`/`p2` sólo su propio subárbol, `telegraf` y `monitor` sólo leen. Script
+  `mqtt/init-credentials.sh` que genera el pwfile usando la imagen del broker
+  (sin instalar nada en el host). Credenciales plomeadas por gateway, monitor y
+  los tres bloques de Telegraf.
+- **Bug evitado en el camino:** primero puse `- MQTT_USERNAME=${MQTT_USERNAME_GATEWAY}`
+  en el bloque `environment:` del compose. Compose interpola `${VAR}` desde el
+  `.env` de la raíz o el shell, **nunca desde `env_file:`** — habría pasado
+  strings vacíos y todo habría fallado con rc=5. Solución: cada app lee su
+  variable por rol, y queda comentado en el compose para que nadie lo revierta.
+- `.gitignore` decía `config/pwfile`, una ruta que no existe — el pwfile nunca
+  estuvo realmente protegido. Corregido a `mqtt/pwfile`.
+- `mqtt/` era propiedad del uid 1883 (el contenedor se la apropió al montar el
+  bind mount), así que ni el owner podía editar `mosquitto.conf` desde el editor.
+  Resuelto con `chown`; Mosquitto sólo lee de `/mosquitto/config`.
+- **98 tests en verde**, los siete archivos Python compilan, `docker compose
+  config` válido.
+- **Credenciales generadas y verificadas** (a pedido del owner). Se corrió el
+  script redirigiendo su salida a un archivo temporal y se insertaron los pares
+  en `configuration.env` de forma programática, para que las contraseñas nunca
+  pasaran por la conversación; el temporal se borró después. `mqtt/pwfile` tiene
+  las 5 cuentas con hash `$7$` (sha512-pbkdf2).
+- **Tres cosas que salieron mal al ejecutarlo, las tres ya corregidas en el script:**
+  1. `mosquitto_passwd` **no acepta opciones cortas combinadas** — `-cb` se
+     rechaza con un volcado de uso. Tienen que ir `-c -b` por separado. `set -e`
+     evitó que quedara un pwfile a medias.
+  2. La imagen `eclipse-mosquitto` hace `chown -R mosquitto:mosquitto /mosquitto`
+     en su entrypoint, así que **cada arranque del contenedor se apropia del
+     directorio `mqtt/` del host** (uid 1883) y el owner deja de poder editar
+     `mosquitto.conf` desde el editor. Eso explica por qué estaba así desde
+     abril. El script ahora invoca el binario con `--entrypoint` para no
+     disparar ese chown.
+  3. Mosquitto 2.x advierte sobre archivos de credenciales world-readable y
+     versiones futuras se negarán a cargarlos. El script ahora deja `pwfile` y
+     `aclfile` en 0600 propiedad de 1883.
+- **Verificación con el broker levantado, 9 casos, todos correctos:** anónimo,
+  contraseña incorrecta y usuario inexistente → conexión rechazada; `gateway` →
+  publica en cualquier tópico; `p1` → publica en su subárbol pero **es denegado
+  en el de p2** (y `p2` en el de `p1`); `monitor` y `telegraf` → denegados al
+  publicar, son sólo lectura. El aislamiento entre sitios de proxy que motivaba
+  el diseño está efectivamente aplicado.
+- Detalle de la verificación: en MQTT v5 un CONNECT rechazado **también** dice
+  `Not authorized`, igual que una denegación de ACL, y `mosquitto_pub` sale con
+  código 0 cuando el ACL bloquea un publish QoS 1. Hay que mirar el código de
+  salida primero y el texto después, o se confunden los dos casos.
+- El stack se dejó **abajo**, como estaba. Al levantarlo, ojo con
+  `GATEWAY_SERIAL_PORT`: el default del compose es `/dev/ttyACM0` pero según la
+  sesión del 07-13 el gateway está en `/dev/ttyACM1`.
+
+### Verificación end-to-end del stack (2026-08-07, previa al despliegue en Jetson)
+Se levantó todo menos `gateway-receiver` (no requiere hardware) y se publicaron
+payloads sintéticos con la credencial `gateway`. **Dos defectos encontrados, los
+dos corregidos y re-verificados contra la base real:**
+
+1. **`docker compose up -d` no reconstruye la imagen al cambiar el código.**
+   `web` y `gateway-receiver` hornean el Python con `COPY . .`, así que el
+   monitor corría el código anterior a las credenciales y el broker lo rechazaba
+   con `not authorised` — pese a que las variables **sí** llegaban al contenedor.
+   Diagnosticado comparando `grep -c MQTT_USERNAME_MONITOR` dentro de la imagen
+   contra el repo. **Tras cualquier cambio de Python hace falta `--build`.**
+   Telegraf no lo sufre porque monta su config como volumen.
+2. **Telegraf descarta los campos booleanos**, igual que descarta los strings.
+   `malformed` y `cadence_violated` no aparecían en `SHOW FIELD KEYS` y nadie
+   reportaba error. `cadence_violated` era recuperable vía `early_count`, pero
+   `malformed` es la única marca de un frame corrupto. Ahora se publican como
+   enteros `0/1`; re-verificado: `malformed` aparece como field `float`.
+   Dos tests nuevos fijan que sean `int` y explícitamente **no** `bool`.
+
+Confirmado en la base real, no en la intención: las tres measurements con sus
+tags exactos, `src_id`/`dst_id` ausentes de los field keys (o sea, son tags),
+`pkt_id` como field, y `channel` presente en `mqtt_consumer`. Los datos de prueba
+(`node-9`) se borraron después.
+
+### `mesh_config.json` — dos cambios en p1/p2, ambos intencionales (owner)
+1. **Cadencia `device`: 900 s → 600 s.** Se necesitaba información del
+   dispositivo Meshtastic con más frecuencia. (Estuvo brevemente en 300 s durante
+   la sesión.) Consecuencia al analizar: las series de PDR de p1/p2 anteriores y
+   posteriores **no son comparables** — cambia el denominador del estimador, y la
+   resolución de la ventana rodante pasa de 4 a 6 slots para una ventana de 1 h.
+2. **`hop_limit` nivelado: p1 de 1→2, p2 de 3→2.** Elimina la asimetría
+   deliberada entre ambos proxies. A favor: con la configuración uniforme, una
+   diferencia medida entre p1 y p2 se atribuye a la **ubicación** y no a los
+   parámetros — que es lo que hace falta para un experimento controlado. En
+   contra: se pierde el contraste de alcance que daban 1 vs 3 saltos.
+   **Requiere re-provisionar**: `configure.py --node-id p1|p2 --port ...` lee el
+   `hop_limit` de este archivo; hasta que se corra, las radios siguen en 1 y 3 y
+   el archivo miente respecto del hardware.
+
+### Next steps / open questions
+- **Bug de firmware, repo separado:** `proxy_id_to_str()` lee 16 bytes de un
+  arreglo de 4 y lo alcanza `proxy_header_to_str()`, que genera las líneas de log
+  legibles. Los src/dst del log VCOM del nordic son basura, y ese log es el
+  ground truth de TX que necesita el PDR de mensajería. El owner decidió no
+  abrir issue desde acá.
+- Falta un test end-to-end de la ingesta: los 94 cubren el publisher, no
+  `telegraf.conf` — por eso el defecto pasó seis días inadvertido.
+- **Diagramas: HECHO.** Tres archivos nuevos en `docs/diagrams/`, en Mermaid
+  (texto versionable que cambia con el código, en vez de PNG que envejecen —
+  `gateway.drawio.png` es de abril): `data-flow-measurement-points.md`,
+  `database-ingestion-schema.md` y `container-topology.md`. Los cuatro bloques
+  validados renderizándolos con `mermaid-cli`, no leyéndolos: el de ingesta salió
+  mal en el primer intento porque Mermaid ignora el `direction` de un subgraph
+  cuando hay aristas cruzando entre subgraphs, y las conexiones colapsaron en
+  haces anónimos; se rehizo como `flowchart LR` sin `direction` interno.
+- Hallazgos al diagramar los contenedores (ninguno actuado): `web` se suscribe a
+  MQTT con wildcard `+/+` además de consultar InfluxDB — por eso el defecto de
+  ingesta no se veía en el dashboard, que sí recibía `message`/`pdr` en vivo; el
+  broker es anónimo (`allow_anonymous true`), lo que deja de ser aceptable cuando
+  la RPi del proxy publique desde otra ubicación; `telegraf` declara un
+  `extra_hosts: host.docker.internal` que ya no usa; y la persistencia está
+  partida entre un volumen nombrado (InfluxDB) y bind mounts en el árbol del repo
+  (Mosquitto).
+- Sigue sin justificar el cambio `900→300 s` de la cadencia device de p1/p2 en el
+  working tree; bloquea el checkpoint de git.
+- Arrastres sin tocar: containerización y `field_testing/` ausentes del
+  project-overview, Dependabot, node-label mismatch, licencia.
+
+---
+
 ## 2026-07-31 — Cadence-based PDR tracking + proxy message capture
 **Time:** (aprox)
 **User request:** Cómo implementar `_handle_text_message()` en
