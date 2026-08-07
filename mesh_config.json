@@ -10,9 +10,9 @@
               "intervals": {"device": 120, "environment": 120, "position": 600}},
         "3": {"id": "!32fe0d4e", "hop_limit": 2, "device_role": "CLIENT",
               "intervals": {"device": 120, "environment": 120, "position": 600}},
-        "p1": {"id": "!6c743130", "hop_limit": 1, "device_role": "CLIENT",
-               "intervals": {"device": 900, "position": 1800}},
-        "p2": {"id": "!bb8106c4", "hop_limit": 3, "device_role": "CLIENT",
-               "intervals": {"device": 900, "position": 1800}}
+        "p1": {"id": "!6c743130", "hop_limit": 2, "device_role": "CLIENT",
+               "intervals": {"device": 600, "position": 1800}},
+        "p2": {"id": "!bb8106c4", "hop_limit": 2, "device_role": "CLIENT",
+               "intervals": {"device": 600, "position": 1800}}
     }
 }
