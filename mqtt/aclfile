@@ -1,0 +1,32 @@
+# Per-account topic permissions. Loaded by mosquitto.conf as acl_file.
+#
+# One account per role rather than one shared secret, so that a compromised or
+# simply misconfigured collector cannot write outside its own namespace. The
+# split matters most for p1/p2: they sit in buildings we do not control, and
+# without these rules either of them could forge the other's measurements.
+#
+# Reload after editing: `docker compose restart mosquitto`.
+
+# ── Publishers ───────────────────────────────────────────────────────────────
+
+# The gateway receiver owns every node's telemetry namespace.
+user gateway
+topic write meshtastic-testbed/#
+
+# Proxy-site edge collectors (ADR-0002). Write ONLY their own subtree.
+user p1
+topic write meshtastic-testbed/p1/#
+
+user p2
+topic write meshtastic-testbed/p2/#
+
+# ── Subscribers ──────────────────────────────────────────────────────────────
+
+# Telegraf reads everything and writes nothing.
+user telegraf
+topic read meshtastic-testbed/#
+
+# The dashboard subscribes live (meshtastic-testbed/+/+) on top of querying
+# InfluxDB. Read-only.
+user monitor
+topic read meshtastic-testbed/#

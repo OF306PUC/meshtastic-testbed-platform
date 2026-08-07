@@ -114,7 +114,8 @@ class InfluxDBConnector:
 
 
 class MQTTConnector:
-    def __init__(self, broker_address, port=1883, client_id=""):
+    def __init__(self, broker_address, port=1883, client_id="",
+                 username="", password=""):
         self.broker_address = broker_address
         self.port           = port
         self.client_id      = client_id
@@ -122,6 +123,10 @@ class MQTTConnector:
         self._subscriptions = []   # remember topics so we can re-subscribe on reconnect
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
+        # Empty username means anonymous, which the broker refuses once
+        # allow_anonymous is off. rc=5 in _on_connect is a bad credential.
+        if username:
+            self.client.username_pw_set(username, password)
         self.client.on_connect    = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message    = self._on_message

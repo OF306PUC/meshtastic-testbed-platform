@@ -46,10 +46,15 @@ services:
       dockerfile: src/gateway/Dockerfile
     container_name: meshtastic-testbed-gateway
     restart: unless-stopped
+    env_file: configuration.env          # MQTT_USERNAME_GATEWAY / _PASSWORD_GATEWAY
     environment:
       - BROKER_ADDRESS=mosquitto           # reach Mosquitto by service name
       - BROKER_PORT=1883
       - CLIENT_ID=meshtastic-testbed-gateway
+      # MQTT_USERNAME_GATEWAY / MQTT_PASSWORD_GATEWAY arrive via env_file above.
+      # They are NOT listed here on purpose: ${VAR} in this block interpolates
+      # from the root .env or the shell, never from env_file, so naming them
+      # here would silently pass empty strings.
       - GATEWAY_SERIAL_PORT=${GATEWAY_SERIAL_PORT:-/dev/ttyACM0}
     devices:
       # Pass the USB serial device through to the container. Override the path
@@ -74,6 +79,7 @@ services:
       - BROKER_ADDRESS=mosquitto          # reach Mosquitto by service name
       - BROKER_PORT=1883
       - CLIENT_ID=meshtastic-testbed-monitor
+      # MQTT_USERNAME_MONITOR / MQTT_PASSWORD_MONITOR arrive via env_file above.
       - SUBSCRIBE_TOPIC=meshtastic-testbed/+/+
     ports:
       - "5000:5000"

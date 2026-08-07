@@ -89,7 +89,11 @@ def main():
     print(f"Loaded {len(known_nodes)} known nodes: {known_nodes}\n")
 
     mqtt = MQTTConnector(
-        broker_address=gateway_params.BROKER_ADDRESS, port=gateway_params.BROKER_PORT, client_id=gateway_params.CLIENT_ID
+        broker_address=gateway_params.BROKER_ADDRESS,
+        port=gateway_params.BROKER_PORT,
+        client_id=gateway_params.CLIENT_ID,
+        username=gateway_params.MQTT_USERNAME,
+        password=gateway_params.MQTT_PASSWORD,
     )
     mqtt.connect()
     mqtt.wait_until_connected()

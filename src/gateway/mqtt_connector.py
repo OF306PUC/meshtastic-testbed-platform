@@ -23,7 +23,8 @@ class MQTTConnector:
     TOPIC_MESSAGE = "meshtastic-testbed/{node_label}/message"
     TOPIC_PDR    = "meshtastic-testbed/{node_label}/pdr"
 
-    def __init__(self, broker_address: str, port: int = 1883, client_id: str = ""):
+    def __init__(self, broker_address: str, port: int = 1883, client_id: str = "",
+                 username: str = "", password: str = ""):
         """
         Initialize the MQTTConnector.
 
@@ -31,11 +32,17 @@ class MQTTConnector:
             broker_address (str): The address of the MQTT broker.
             port (int, optional): The port to connect to. Defaults to 1883.
             client_id (str, optional): The client ID for the connection. Defaults to "".
+            username (str, optional): Broker username. Empty means connect
+                anonymously, which the broker only accepts if it is configured
+                with `allow_anonymous true`.
+            password (str, optional): Broker password.
         """
         self.broker_address  = broker_address
         self.port            = port
         self.client_id       = client_id
         self.client          = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
+        if username:
+            self.client.username_pw_set(username, password)
         self.client.reconnect_delay_set(min_delay=5, max_delay=60)
         self._connected_event = threading.Event()
         self.client.on_connect    = self.on_connect

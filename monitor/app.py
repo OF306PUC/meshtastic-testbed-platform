@@ -9,6 +9,7 @@ from utils import InfluxDBConnector, MQTTConnector, ALL_FIELDS
 from param import (
     DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME,
     BROKER_ADDRESS, BROKER_PORT, CLIENT_ID, SUBSCRIBE_TOPIC,
+    MQTT_USERNAME, MQTT_PASSWORD,
 )
 
 import param
@@ -27,7 +28,8 @@ db = InfluxDBConnector(
     database=DB_NAME,
 )
 
-mqtt = MQTTConnector(BROKER_ADDRESS, BROKER_PORT, CLIENT_ID)
+mqtt = MQTTConnector(BROKER_ADDRESS, BROKER_PORT, CLIENT_ID,
+                     username=MQTT_USERNAME, password=MQTT_PASSWORD)
 mqtt.socketio = socketio
 mqtt.connect()
 mqtt.loop()          # must start the network thread before subscribing
