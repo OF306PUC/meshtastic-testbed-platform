@@ -70,9 +70,52 @@ def _private_packet(payload: bytes, pkt_id=None):
     }
 
 
-def _proxy_frame(fw_ver=1, src=0x6C743130, dst=0xBB8106C4, content=b"hello"):
-    """Builds a little-endian [fw_ver][src_id][dst_id][content] frame."""
-    return struct.pack("<BII", fw_ver, src, dst) + content
+# proxy_ids are BIG-ENDIAN uint32 phone numbers without country code (the proxy
+# logs them as "+56<uint32>"), NOT Meshtastic node ids. 352953967 is the handset
+# that confirmed the byte order: it puts 0x1509A66F on the wire and the firmware
+# logs it as "+56352953967".
+_SRC_PHONE = 352953967
+_DST_PHONE = 987654321
+
+
+class TestProxyIdByteOrder(unittest.TestCase):
+    """
+    Locks the wire byte order down against a real capture.
+
+    The proxy repo contradicts itself — client-integration.md 4.1 says
+    little-endian, every sys_get_be32() call site says big-endian — and the
+    disagreement is invisible in operation because routing compares ids with
+    memcmp over raw bytes. It only shows up as wrong numbers, which then become
+    InfluxDB tag values that cannot be corrected without splitting every series.
+    """
+
+    def test_wire_bytes_decode_to_the_registered_handset(self):
+        receiver, fake = _make_receiver()
+        # Exact header bytes observed on the air for +56352953967.
+        wire = bytes([0x01, 0x15, 0x09, 0xA6, 0x6F])
+        receiver._on_receive(_text_packet(wire + b"test_all"), interface=None)
+
+        _, payload = fake.message_calls[0]
+        self.assertEqual(payload["src_id"], "352953967")
+        # Little-endian would yield this instead — not a valid phone number.
+        self.assertNotEqual(payload["src_id"], "1873874197")
+
+
+def _proxy_frame(fw_ver=1, src=_SRC_PHONE, dst=_DST_PHONE, content=b"hello"):
+    """PRIVATE_APP frame: [version][src_id][dst_id][content] — 9-byte header."""
+    return struct.pack(">BII", fw_ver, src, dst) + content
+
+
+def _broadcast_frame(fw_ver=1, src=_SRC_PHONE, content=b"hello"):
+    """TEXT_MESSAGE_APP frame: [version][src_id][content] — 5-byte header."""
+    return struct.pack(">BI", fw_ver, src) + content
+
+
+def _text_packet(payload: bytes, pkt_id=None):
+    """Synthetic TEXT_MESSAGE_APP packet carrying a broadcast proxy frame."""
+    pkt = _private_packet(payload, pkt_id)
+    pkt["decoded"]["portnum"] = "TEXT_MESSAGE_APP"
+    return pkt
 
 
 def _env_packet(temp=22.5, humidity=55.0, include_humidity=True, pkt_id=None):
@@ -185,7 +228,86 @@ class FakeMQTT:
 # Meta-field names that must appear on every payload
 # ---------------------------------------------------------------------------
 
-META_KEYS = {"node_id", "node_label", "rssi", "snr", "hop", "device_ts", "received_at"}
+META_KEYS = {"node_id", "node_label", "rssi", "snr", "hop", "channel",
+             "device_ts", "received_at"}
+
+
+class TestBooleanFieldsArePublishedAsIntegers(unittest.TestCase):
+    """
+    Telegraf's classic JSON parser converts numbers and silently DROPS booleans,
+    exactly as it drops strings. A `true`/`false` field never reaches InfluxDB
+    and nothing reports an error — verified against the running stack on
+    2026-08-07, where `malformed` and `cadence_violated` were absent from
+    SHOW FIELD KEYS. They are published as 0/1 so they survive.
+    """
+
+    def test_malformed_flag_is_an_int_on_both_paths(self):
+        receiver, fake = _make_receiver()
+        receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        receiver._on_receive(_private_packet(b"\x01\x02"), interface=None)
+
+        good, bad = fake.message_calls[0][1], fake.message_calls[1][1]
+        self.assertIsInstance(good["malformed"], int)
+        self.assertNotIsInstance(good["malformed"], bool)
+        self.assertEqual(good["malformed"], 0)
+        self.assertIsInstance(bad["malformed"], int)
+        self.assertNotIsInstance(bad["malformed"], bool)
+        self.assertEqual(bad["malformed"], 1)
+
+    def test_cadence_violated_is_an_int(self):
+        receiver, fake = _make_receiver(
+            intervals={_KNOWN_NODE_LABEL: {"device": 120}})
+        receiver._on_receive(_device_packet(), interface=None)
+
+        _, payload = fake.device_calls[0]
+        self.assertIsInstance(payload["cadence_violated"], int)
+        self.assertNotIsInstance(payload["cadence_violated"], bool)
+
+
+class TestChannelCapture(unittest.TestCase):
+    """
+    The channel index is the only way to tell which Meshtastic channel a packet
+    actually rode. It doubles as the detector for a known phone-app bug: the
+    intended design puts messaging on channel 1, but PRIVATE_APP is currently
+    built on channel 0, so message traffic is encrypted with the telemetry
+    channel's PSK until the app is fixed.
+    """
+
+    def test_absent_channel_key_means_zero_not_none(self):
+        """
+        protobuf3 omits default values, so channel 0 arrives as a MISSING key.
+        A bare .get() would yield None, Telegraf would drop it, and the tag
+        would silently vanish from the majority of traffic.
+        """
+        receiver, fake = _make_receiver()
+        pkt = _device_packet()
+        self.assertNotIn("channel", pkt)          # as the library delivers it
+        receiver._on_receive(pkt, interface=None)
+
+        _, payload = fake.device_calls[0]
+        self.assertEqual(payload["channel"], 0)
+        self.assertIsNotNone(payload["channel"])
+
+    def test_channel_is_carried_on_proxy_messages(self):
+        receiver, fake = _make_receiver()
+        pkt = _private_packet(_proxy_frame())
+        pkt["channel"] = 1
+        receiver._on_receive(pkt, interface=None)
+
+        _, payload = fake.message_calls[0]
+        self.assertEqual(payload["channel"], 1)
+
+    def test_channel_survives_a_malformed_frame(self):
+        """The malformed record is the only trace of a bad frame; it must still
+        say which channel carried it."""
+        receiver, fake = _make_receiver()
+        pkt = _private_packet(b"\x01\x02\x03")
+        pkt["channel"] = 1
+        receiver._on_receive(pkt, interface=None)
+
+        _, payload = fake.message_calls[0]
+        self.assertTrue(payload["malformed"])
+        self.assertEqual(payload["channel"], 1)
 
 
 # ---------------------------------------------------------------------------
@@ -543,12 +665,23 @@ class TestProxyMessageFrame(unittest.TestCase):
         label, payload = self.fake.message_calls[0]
 
         self.assertEqual(label, _KNOWN_NODE_LABEL)
-        self.assertEqual(payload["src_id"], "!6c743130")
-        self.assertEqual(payload["dst_id"], "!bb8106c4")
+        self.assertEqual(payload["src_id"], str(_SRC_PHONE))
+        self.assertEqual(payload["dst_id"], str(_DST_PHONE))
+        self.assertEqual(payload["portnum"], "PRIVATE_APP")
         self.assertEqual(payload["fw_ver"], 1)
         self.assertFalse(payload["malformed"])
         self.assertEqual(payload["content_len"], len(b"hello"))
         self.assertEqual(payload["payload_len"], 9 + len(b"hello"))
+
+    def test_src_and_dst_are_not_the_same_field(self):
+        """
+        Regression: a copy-paste once assigned src to both, which reads as
+        "every phone messages itself" and would freeze a duplicate of src into
+        the dst_id InfluxDB tag.
+        """
+        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        _, payload = self.fake.message_calls[0]
+        self.assertNotEqual(payload["src_id"], payload["dst_id"])
 
     def test_node_id_is_the_relay_not_the_originator(self):
         """
@@ -598,25 +731,25 @@ class TestProxyMessageFrame(unittest.TestCase):
         _, payload = self.fake.message_calls[0]
         self.assertTrue(payload["malformed"])
 
-    def test_seq_is_none_until_firmware_emits_it(self):
+    def test_unknown_version_reported_as_malformed(self):
+        """
+        The proxy has a proposed v2 (a 2-byte seq at offset 9). Parsing a v2
+        frame against the v1 layout would silently shift the content and
+        corrupt every field after it, so an unknown VERSION must be rejected.
+        """
+        frame = struct.pack(">BII", 0x02, _SRC_PHONE, _DST_PHONE) + b"hello"
+        self.receiver._on_receive(_private_packet(frame), interface=None)
+
+        self.assertEqual(len(self.fake.message_calls), 1)
+        _, payload = self.fake.message_calls[0]
+        self.assertTrue(payload["malformed"])
+        self.assertNotIn("src_id", payload)
+
+    def test_no_seq_field_is_published(self):
+        """v1 has no sequence counter; publishing a null one invited misuse."""
         self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
-        self.assertIsNone(payload["seq"])
-
-    def test_seq_parsed_when_frame_has_seq_enabled(self):
-        """Forward-compat: flipping FRAME_HAS_SEQ picks up the 2-byte counter."""
-        frame = struct.pack("<BII", 1, 0x6C743130, 0xBB8106C4) \
-            + struct.pack("<H", 4242) + b"hi"
-        original = MeshReceiver.FRAME_HAS_SEQ
-        MeshReceiver.FRAME_HAS_SEQ = True
-        try:
-            self.receiver._on_receive(_private_packet(frame), interface=None)
-        finally:
-            MeshReceiver.FRAME_HAS_SEQ = original
-
-        _, payload = self.fake.message_calls[0]
-        self.assertEqual(payload["seq"], 4242)
-        self.assertEqual(payload["content_len"], len(b"hi"))
+        self.assertNotIn("seq", payload)
 
     def test_content_not_published_by_default(self):
         """
@@ -639,6 +772,73 @@ class TestProxyMessageFrame(unittest.TestCase):
         _, payload = self.fake.message_calls[0]
         for key in ("pdr", "pdr_window", "missed_est"):
             self.assertNotIn(key, payload)
+
+
+class TestBroadcastMessageFrame(unittest.TestCase):
+    """
+    TEXT_MESSAGE_APP frames: [version][src_id][content], 5-byte header.
+
+    The proxy broadcasts these to every BLE connection because they carry no
+    destination, so the header is 4 bytes shorter than the routed PRIVATE_APP
+    one.  Parsing them against the 9-byte layout would eat 4 bytes of content
+    and read the first content bytes as a destination.
+    """
+
+    def setUp(self):
+        self.receiver, self.fake = _make_receiver()
+
+    def test_broadcast_frame_has_src_but_no_dst(self):
+        self.receiver._on_receive(_text_packet(_broadcast_frame()), interface=None)
+
+        self.assertEqual(len(self.fake.message_calls), 1)
+        _, payload = self.fake.message_calls[0]
+        self.assertEqual(payload["src_id"], str(_SRC_PHONE))
+        self.assertIsNone(payload["dst_id"])
+        self.assertEqual(payload["portnum"], "TEXT_MESSAGE_APP")
+        self.assertFalse(payload["malformed"])
+
+    def test_content_offset_uses_the_five_byte_header(self):
+        """The 4 bytes a 9-byte header would have swallowed are content."""
+        self.receiver._on_receive(
+            _text_packet(_broadcast_frame(content=b"hello")), interface=None)
+
+        _, payload = self.fake.message_calls[0]
+        self.assertEqual(payload["content_len"], len(b"hello"))
+        self.assertEqual(payload["payload_len"], 5 + len(b"hello"))
+
+    def test_header_only_broadcast_frame_is_valid(self):
+        self.receiver._on_receive(
+            _text_packet(_broadcast_frame(content=b"")), interface=None)
+
+        _, payload = self.fake.message_calls[0]
+        self.assertFalse(payload["malformed"])
+        self.assertEqual(payload["content_len"], 0)
+
+    def test_four_byte_payload_is_malformed(self):
+        """One byte short of the 5-byte broadcast header."""
+        self.receiver._on_receive(_text_packet(b"\x01\x02\x03\x04"), interface=None)
+
+        _, payload = self.fake.message_calls[0]
+        self.assertTrue(payload["malformed"])
+        self.assertEqual(payload["payload_len"], 4)
+
+    def test_portnum_distinguishes_the_two_frame_shapes(self):
+        """
+        Same 9 bytes on the wire mean different things per portnum: routed with
+        a destination, or broadcast with 4 bytes of content.
+        """
+        wire = struct.pack(">BII", 1, _SRC_PHONE, _DST_PHONE)
+
+        self.receiver._on_receive(_private_packet(wire), interface=None)
+        _, routed = self.fake.message_calls[0]
+
+        self.receiver._on_receive(_text_packet(wire), interface=None)
+        _, bcast = self.fake.message_calls[1]
+
+        self.assertEqual(routed["content_len"], 0)
+        self.assertEqual(routed["dst_id"], str(_DST_PHONE))
+        self.assertEqual(bcast["content_len"], 4)
+        self.assertIsNone(bcast["dst_id"])
 
 
 class TestPdrIntegration(unittest.TestCase):

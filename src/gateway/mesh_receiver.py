@@ -10,17 +10,29 @@ from common.mesh_config import (
 )
 from gateway.mqtt_connector import MQTTConnector
 
-# Proxy application frame carried in the PRIVATE_APP payload:
+# Proxy application frames, carried inside MeshPacket.decoded.payload.
 #
-#     [fw_ver:1][src_id:4][dst_id:4][seq:2]?[content:N]
+#     portnum=PRIVATE_APP (256)     [VERSION:1][SRC_ID:4][DST_ID:4][content:N]
+#     portnum=TEXT_MESSAGE_APP (1)  [VERSION:1][SRC_ID:4][content:N]
 #
-# Little-endian: the nRF52840 proxy (../meshtastic-ble-proxy) packs the struct
-# natively.  If the firmware ever switches to network byte order, flip these to
-# ">" — a wrong byte order does not raise, it just yields mirrored src/dst ids
-# that look like different nodes, so verify against the firmware before trusting
-# per-flow message stats.
-_FRAME_HDR = struct.Struct("<BII")   # fw_ver, src_id, dst_id  -> 9 bytes
-_FRAME_SEQ = struct.Struct("<H")     # optional app-level sequence counter
+# PRIVATE_APP is the proxy's routed unicast carrier: DST_ID names which phone
+# behind the target node should receive it, so the proxy can deliver to a single
+# BLE connection.  TEXT_MESSAGE_APP carries no destination — the proxy broadcasts
+# it to every connection — so its header is 4 bytes shorter.
+#
+# A proxy_id is a 4-byte BIG-ENDIAN uint32: the phone's national number without
+# country code, which the proxy logs as "+56<uint32>".  It is NOT a Meshtastic
+# node id and must not be rendered like one; it is published in decimal so it
+# matches the proxy log and what the phone writes to NODE_REG.
+
+_FRAME_HDR_UNICAST   = struct.Struct(">BII")   # version, src_id, dst_id -> 9 B
+_FRAME_HDR_BROADCAST = struct.Struct(">BI")    # version, src_id         -> 5 B
+_FRAME_VERSION       = 0x01                    # PROXY_VERSION
+
+_FRAME_HDRS = {
+    "PRIVATE_APP":      _FRAME_HDR_UNICAST,
+    "TEXT_MESSAGE_APP": _FRAME_HDR_BROADCAST,
+}
 
 
 class CadencePdrTracker:
@@ -188,7 +200,9 @@ class CadencePdrTracker:
             "missed_est":        f["missed"],
             "missed_now":        missed_now,
             "early_count":       f["early"],
-            "cadence_violated":  f["early"] > 0,
+            # 0/1, not a bool: Telegraf's json parser converts numbers and
+            # silently DROPS booleans, so a bool field never reaches InfluxDB.
+            "cadence_violated":  int(f["early"] > 0),
             "gap_s":             gap_s,
         }
 
@@ -200,22 +214,17 @@ class MeshReceiver:
     and estimates per-flow packet delivery ratio from the known broadcast
     cadence (see CadencePdrTracker).
 
-    Proxy text messages have the following structure:
-        "[proxy_firmware_version(1 byte)][src_id(4 bytes)][dst_id(4 bytes)][content]"
+    Proxy application frames come in two shapes, selected by portnum:
+        PRIVATE_APP       [version:1][src_id:4][dst_id:4][content]  routed unicast
+        TEXT_MESSAGE_APP  [version:1][src_id:4][content]            broadcast
 
     They carry NO cadence, so they are captured and published but contribute no
-    PDR.  Message-level PDR needs an app-level sequence counter in the frame;
-    when the proxy firmware emits one, set FRAME_HAS_SEQ = True and the parser
-    picks it up.
+    PDR.
     """
 
     SEEN_MAX = 200
 
-    # Flip to True once the proxy firmware appends a 2-byte sequence counter
-    # after the 9-byte header.  Until then `seq` is reported as None.
-    FRAME_HAS_SEQ = False
-
-    _APP_FIELDS = ["PRIVATE_APP", "TELEMETRY_APP", "POSITION_APP"]
+    _APP_FIELDS = ["PRIVATE_APP", "TEXT_MESSAGE_APP", "TELEMETRY_APP", "POSITION_APP"]
 
     def __init__(self, mqtt: MQTTConnector, known_nodes: dict,
                  intervals: dict = None, pdr_window_sec: dict = None,
@@ -309,6 +318,12 @@ class MeshReceiver:
             hop_taken  = (hop_start - hop_limit
                           if hop_start is not None and hop_limit is not None
                           else None)
+            # Default to 0 explicitly: protobuf3 omits default values, so the
+            # key is simply absent for channel 0 and a bare .get() would yield
+            # None — which Telegraf drops, losing the tag on most traffic.
+            # This is the channel INDEX. The node's own console logs a channel
+            # HASH (Ch=0xec) on over-the-air lines; they are not the same thing.
+            channel    = packet.get("channel", 0)
 
             if not self._is_valid(sender_id, sender_num, packet.get("id")):
                 return
@@ -321,27 +336,31 @@ class MeshReceiver:
             # because Telegraf uses it as the InfluxDB time key.
             now_mono    = time.monotonic()
 
-            if decoded.get("portnum") not in self._APP_FIELDS:
+            portnum = decoded.get("portnum")
+            if portnum not in self._APP_FIELDS:
                 return
 
-            if decoded.get("portnum") == "PRIVATE_APP":
+            if portnum in _FRAME_HDRS:
                 payload = decoded.get("payload")
-                self._handle_text_message(sender_id, label, payload, rssi, snr,
-                                          hop_taken, received_at, packet.get("id"))
+                self._handle_text_message(sender_id, label, payload, portnum,
+                                          rssi, snr, hop_taken, channel,
+                                          received_at, packet.get("id"))
 
-            if decoded.get("portnum") == "POSITION_APP":
+            if portnum == "POSITION_APP":
                 pos       = decoded.get("position", {})
                 device_ts = pos.get("time", int(time.time()))
                 self._handle_position(sender_id, label, pos, rssi, snr, hop_taken,
-                                      device_ts, received_at, now_mono)
+                                      channel, device_ts, received_at, now_mono)
 
-            if decoded.get("portnum") == "TELEMETRY_APP":
+            if portnum == "TELEMETRY_APP":
                 telem     = decoded.get("telemetry", {})
                 device_ts = telem.get("time", int(time.time()))
                 self._handle_device_telemetry(sender_id, label, telem, rssi, snr,
-                                              hop_taken, device_ts, received_at, now_mono)
+                                              hop_taken, channel, device_ts,
+                                              received_at, now_mono)
                 self._handle_env_telemetry(sender_id, label, telem, rssi, snr,
-                                           hop_taken, device_ts, received_at, now_mono)
+                                           hop_taken, channel, device_ts,
+                                           received_at, now_mono)
 
         except Exception as e:
             print(f"[MESH] ERROR processing packet: {e}")
@@ -420,21 +439,26 @@ class MeshReceiver:
     # ── Telemetry parsers ─────────────────────────────────────────────────────
 
     def _handle_text_message(
-            self, node_id: str, label: str, payload: bytes, rssi: int, snr: int,
-            hop: int, received_at: int, pkt_id=None):
+            self, node_id: str, label: str, payload: bytes, portnum: str,
+            rssi: int, snr: int, hop: int, channel: int, received_at: int,
+            pkt_id=None):
         """
         Parses one proxy application frame and publishes its metadata.
 
         No PDR here: phone messages have no cadence to measure against.
         """
-        frame = self._parse_proxy_frame(payload)
+        frame = self._parse_proxy_frame(payload, portnum)
         if frame is None:
             n = len(payload) if payload else 0
-            print(f"[MSG] Malformed frame from {label} ({node_id}): {n} B")
+            print(f"[MSG] Malformed {portnum} frame from {label} ({node_id}): {n} B")
             self.mqtt.publish_message(label, {
                 "node_id":     node_id,
                 "node_label":  label,
-                "malformed":   True,
+                "portnum":     portnum,
+                "channel":     channel,
+                # 0/1, not a bool — Telegraf drops boolean fields (see _snapshot).
+                # This one matters most: it is the only trace a frame was bad.
+                "malformed":   1,
                 "payload_len": n,
                 "pkt_id":      pkt_id,
                 "rssi":        rssi,
@@ -447,12 +471,13 @@ class MeshReceiver:
         record = {
             "node_id":     node_id,             # mesh node we heard it FROM (relay)
             "node_label":  label,
-            "src_id":      frame["src_id"],     # app-level originator (proxy/phone)
-            "dst_id":      frame["dst_id"],
+            "portnum":     portnum,             # PRIVATE_APP routed / TEXT_MESSAGE_APP broadcast
+            "channel":     channel,             # 0=telemetry, 1=messaging (see below)
+            "src_id":      frame["src_id"],     # app-level originator (phone)
+            "dst_id":      frame["dst_id"],     # None on broadcast frames
             "fw_ver":      frame["fw_ver"],
-            "seq":         frame["seq"],
             "pkt_id":      pkt_id,              # mesh-layer id, for correlation
-            "malformed":   False,
+            "malformed":   0,
             "payload_len": len(payload),
             "content_len": frame["content_len"],
             "rssi":        rssi,
@@ -463,48 +488,60 @@ class MeshReceiver:
         if self.capture_content:
             record["content_hex"] = frame["content"].hex()
 
-        print(f"\n[MSG] {frame['src_id']} -> {frame['dst_id']} via {label} "
-              f"(fw={frame['fw_ver']}, seq={frame['seq']}, "
-              f"{frame['content_len']} B, hop={hop}, rssi={rssi})")
+        print(f"\n[MSG] {frame['src_id']} -> {frame['dst_id'] or 'broadcast'} "
+              f"via {label} (fw={frame['fw_ver']}, {frame['content_len']} B, "
+              f"hop={hop}, rssi={rssi})")
         self.mqtt.publish_message(label, record)
 
     @classmethod
-    def _parse_proxy_frame(cls, payload) -> dict:
+    def _parse_proxy_frame(cls, payload, portnum: str) -> dict:
         """
-        Unpacks [fw_ver][src_id][dst_id][seq?][content].
+        Unpacks a proxy frame using the header layout its portnum implies
+        (see _FRAME_HDRS).  Broadcast frames carry no destination, so "dst_id"
+        comes back None rather than a fabricated value.
 
-        Returns None when the payload is not bytes or is shorter than the
-        header — a truncated frame must be reported as a loss, not guessed at.
+        Returns None when the portnum carries no proxy header, the payload is
+        not bytes, it is shorter than that header, or the VERSION byte is not
+        one this parser knows — a truncated or future-format frame must be
+        reported as a loss, not guessed at.
         """
+        hdr = _FRAME_HDRS.get(portnum)
+        if hdr is None:
+            return None
         if not isinstance(payload, (bytes, bytearray)):
             return None
-        if len(payload) < _FRAME_HDR.size:
+        if len(payload) < hdr.size:
             return None
 
-        fw_ver, src, dst = _FRAME_HDR.unpack_from(payload, 0)
-        offset, seq      = _FRAME_HDR.size, None
-        if cls.FRAME_HAS_SEQ and len(payload) >= offset + _FRAME_SEQ.size:
-            (seq,)  = _FRAME_SEQ.unpack_from(payload, offset)
-            offset += _FRAME_SEQ.size
+        fields = hdr.unpack_from(payload, 0)
+        fw_ver = fields[0]
+        if fw_ver != _FRAME_VERSION:
+            return None
 
+        src    = fields[1]
+        dst    = fields[2] if len(fields) > 2 else None
+        offset = hdr.size
         return {
             "fw_ver":      fw_ver,
-            "src_id":      f"!{src:08x}",   # same shape as Meshtastic node ids
-            "dst_id":      f"!{dst:08x}",
-            "seq":         seq,
+            # Decimal uint32: matches how the proxy logs the id ("+56<uint32>")
+            # and what the phone writes to NODE_REG, so the ids cross-reference
+            # with the firmware side instead of only with themselves.
+            "src_id":      str(src),
+            "dst_id":      str(dst) if dst is not None else None,
             "content":     bytes(payload[offset:]),
             "content_len": len(payload) - offset,
         }
 
     def _handle_position(
             self, node_id: str, label: str, pos: dict, rssi: int, snr: int, hop: int,
-            device_ts: int, received_at: int, now_mono: float = None):
+            channel: int, device_ts: int, received_at: int, now_mono: float = None):
         payload = {
             "node_id":     node_id,
             "node_label":  label,
             "rssi":        rssi,
             "snr":         snr,
             "hop":         hop,
+            "channel":     channel,
             "device_ts":   device_ts,
             "received_at": received_at,
         }
@@ -522,7 +559,7 @@ class MeshReceiver:
 
     def _handle_device_telemetry(
             self, node_id: str, label: str, telem: dict, rssi: int, snr: int, hop: int,
-            device_ts: int, received_at: int, now_mono: float = None):
+            channel: int, device_ts: int, received_at: int, now_mono: float = None):
         device = telem.get("deviceMetrics", {})
         if not device:
             return
@@ -536,6 +573,7 @@ class MeshReceiver:
             "rssi":        rssi,
             "snr":         snr,
             "hop":         hop,
+            "channel":     channel,
             "device_ts":   device_ts,
             "received_at": received_at,
         }
@@ -555,7 +593,7 @@ class MeshReceiver:
 
     def _handle_env_telemetry(
             self, node_id: str, label: str, telem: dict, rssi: int, snr: int, hop: int,
-            device_ts: int, received_at: int, now_mono: float = None):
+            channel: int, device_ts: int, received_at: int, now_mono: float = None):
         env = telem.get("environmentMetrics", {})
         if not env:
             return
@@ -565,6 +603,7 @@ class MeshReceiver:
             "rssi":        rssi,
             "snr":         snr,
             "hop":         hop,
+            "channel":     channel,
             "device_ts":   device_ts,
             "received_at": received_at,
         }
