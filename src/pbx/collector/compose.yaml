@@ -2,22 +2,37 @@
 # site, not on the gateway host — this is a separate deployment from the root
 # docker-compose.yaml and the two are never brought up together.
 #
+# From this directory — `compose.yaml` is a default filename, so no -f needed:
+#
+#   cd src/pbx/collector
 #   COLLECTOR_SITE=p1 \
 #   NODE_SERIAL_PORT=/dev/serial/by-id/usb-... \
 #   BROKER_ADDRESS=<gateway host> \
-#   docker compose -f compose.pbx-collector.yaml up -d --build
+#   docker compose up -d --build
+#
+# Relative paths below resolve against THIS directory, not the repo root, which
+# is why context and env_file climb three levels. The Dockerfile path is relative
+# to the context, so it stays repo-root-relative.
+#
+# The `:?` guards apply to `docker compose build` as well, not just `up`: Compose
+# interpolates the whole file before it does anything. Set the variables for a
+# bare build too. The trade is deliberate — a collector started against the wrong
+# device comes up clean and reports nothing, so failing loudly here is worth the
+# small friction.
 #
 # The gateway host needs a stable address on the building network for this to
 # keep working across reboots — see ADR-0002 § Open questions.
 
+name: meshpbx-collector
+
 services:
   node-logd:
     build:
-      context: .
+      context: ../../..
       dockerfile: src/pbx/collector/Dockerfile
     container_name: meshtastic-testbed-node-logd
     restart: unless-stopped
-    env_file: configuration.env        # MQTT_PASSWORD_P1 / MQTT_PASSWORD_P2
+    env_file: ../../../configuration.env   # MQTT_PASSWORD_P1 / MQTT_PASSWORD_P2
     environment:
       - COLLECTOR_SITE=${COLLECTOR_SITE:-p1}
       - NODE_SERIAL_PORT=${NODE_SERIAL_PORT:?set NODE_SERIAL_PORT to the node console, ideally a /dev/serial/by-id path}
