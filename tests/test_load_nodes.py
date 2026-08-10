@@ -201,7 +201,7 @@ class TestLoadIntervals(unittest.TestCase):
         A kind a node does not declare must stay absent.
 
         Filling it from defaults would make the gateway infer losses against a
-        cadence the node was never configured with — the proxy nodes broadcast
+        cadence the node was never configured with — the PBX nodes broadcast
         no environment telemetry at all.
         """
         config = {"nodes_cfg": {"p1": {"id": "!6c743130",

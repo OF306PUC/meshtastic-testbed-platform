@@ -1,7 +1,7 @@
 """
 Line reader for a device console, with reconnection.
 
-Shared by node_logd (the LiLyGO's Meshtastic console) and proxy_logd (the
+Shared by node_logd (the LiLyGO's Meshtastic console) and pbx_logd (the
 nRF52840's VCOM). Both are read-only taps: nothing is ever written to the port.
 """
 
@@ -28,7 +28,7 @@ class ConsoleReader:
 
     * **DTR/RTS are never asserted.** The standard ESP32 auto-reset circuit is
       wired to those lines, so merely opening the port reboots the board. A
-      reader that reconnects after a hiccup would then reboot the proxy's node
+      reader that reconnects after a hiccup would then reboot the PBX's node
       on every reconnect — and every reboot re-anchors the gateway's cadence PDR
       estimator (CadencePdrTracker.reanchor), so the instrument would be
       corrupting the measurement it exists to take. `hupcl` is also cleared so

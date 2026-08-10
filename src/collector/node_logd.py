@@ -2,18 +2,18 @@
 node_logd — measurement point P2.
 
 Reads the LiLyGO's Meshtastic console as PLAIN TEXT and reconstructs, per
-packet, what the node did with the frames the BLE proxy handed it over UART1.
+packet, what the node did with the frames the PBX handed it over UART1.
 
 Why a text parser and not a client: the firmware permits a single Stream API
-instance and the proxy already holds it, so a second Meshtastic client on the
+instance and the PBX already holds it, so a second Meshtastic client on the
 node's USB is impossible. The console, however, emits the full transmit
 lifecycle in text whenever nobody is speaking protobuf on that port — a passive
-read that cannot contend with the proxy.
+read that cannot contend with the PBX.
 
 What it produces that nothing else can: the TX side of message-level PDR. The
 gateway records `pkt_id` on reception; this records the same id on transmission,
 so the ratio becomes a subtraction instead of an inference. It also separates
-"the proxy handed it over but the node never transmitted" from "transmitted and
+"the PBX handed it over but the node never transmitted" from "transmitted and
 lost on the air", which no single vantage point could distinguish.
 
 Scope: only packets that entered via `PACKET FROM PHONE` are tracked. The node's
@@ -113,7 +113,7 @@ class NodeLogTracker:
         self.lines_seen     = 0
         self.lines_parsed   = 0
         self.lines_rejected = 0
-        self.tx_other       = 0  # transmissions not originated by the proxy
+        self.tx_other       = 0  # transmissions not originated by the PBX
         self.counters       = {}
 
     # ── Ingestion ───────────────────────────────────────────────────────────
@@ -296,7 +296,7 @@ def main():
                         help="Node console device. Falls back to NODE_SERIAL_PORT. "
                              "Prefer a /dev/serial/by-id/ path.")
     parser.add_argument("--site", default=params.SITE,
-                        help="Proxy site label (p1|p2); also the broker account.")
+                        help="PBX site label (p1|p2); also the broker account.")
     args = parser.parse_args()
 
     if not args.port:

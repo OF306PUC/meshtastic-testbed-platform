@@ -5,7 +5,7 @@
 >
 > **Estado:** la Raspberry Pi y los puntos P1/P2 son un plan, no están
 > instalados. Hoy sólo existe P3. La decisión y sus condiciones previas están en
-> [`ADR-0002`](../architecture/ADR-0002-proxy-site-edge-collector.md).
+> [`ADR-0002`](../architecture/ADR-0002-pbx-site-edge-collector.md).
 
 ## Por qué hacen falta tres puntos
 
@@ -21,10 +21,10 @@ de radio o un teléfono que se desconectó.
 
 ```mermaid
 flowchart LR
-    subgraph sitio["Sitio del proxy — p1 y p2 se instalan por separado"]
+    subgraph sitio["Sitio del PBX — p1 y p2 se instalan por separado"]
         direction TB
-        PH["Teléfono<br/>hasta 6 por proxy"]
-        NRF["nRF52840<br/>proxy BLE"]
+        PH["Teléfono<br/>hasta 6 por PBX"]
+        NRF["nRF52840<br/>PBX"]
         LILY["LiLyGO<br/>nodo Meshtastic"]
         RPI["Raspberry Pi<br/>alimenta ambas placas<br/>masa común para el UART"]
 
@@ -53,12 +53,12 @@ observan.
 
 | Punto | Dónde | Qué registra | Estado |
 |---|---|---|---|
-| **P1** | VCOM del nRF52840 | Lo que el proxy **intentó** entregar al nodo | Contadores sí; ids rotos — ver abajo |
+| **P1** | VCOM del nRF52840 | Lo que el PBX **intentó** entregar al nodo | Contadores sí; ids rotos — ver abajo |
 | **P2** | Consola USB del LiLyGO, leída en texto plano | Lo que el nodo **puso en el aire**, con su `pkt_id` | ✅ Verificado, no instalado |
 | **P3** | `receiver.py` en el gateway | Lo que **llegó** por la malla | ✅ Operativo |
 
 **P2 es un lector pasivo, no un cliente.** El firmware sólo admite una instancia
-del Stream API y el proxy ya la ocupa por UART1, así que la idea original de
+del Stream API y el PBX ya la ocupa por UART1, así que la idea original de
 conectar un cliente Meshtastic por USB es imposible. Pero la consola USB emite el
 ciclo de vida completo en texto mientras nadie hable protobuf por ahí:
 
@@ -71,7 +71,7 @@ ciclo de vida completo en texto mientras nadie hable protobuf por ahí:
 ```
 
 Ese `id` es el mismo `pkt_id` que el gateway ya guarda. Y como son tres etapas,
-"el proxy lo entregó pero el nodo no transmitió" queda distinguible de
+"el PBX lo entregó pero el nodo no transmitió" queda distinguible de
 "transmitió y no llegó" — más fino que lo que se había diseñado.
 
 La consola además emite `txGood=…,txRelay=…,rxGood=…,rxBad=…`: totales
@@ -81,7 +81,7 @@ Y la atribución que habilitan:
 
 | Diferencia | Pérdida atribuible |
 |---|---|
-| P1 − P2 | BLE (teléfono→proxy) + Stream API por UART (proxy→nodo) |
+| P1 − P2 | BLE (teléfono→PBX) + Stream API por UART (PBX→nodo) |
 | P2 − P3 | Radio: colisión, alcance, congestión de airtime |
 | Sólo P3 | Las tres juntas, indistinguibles — la situación actual |
 
@@ -89,7 +89,7 @@ Y la atribución que habilitan:
 
 P2 y P3 se cruzan por el `pkt_id` que asigna el firmware del nodo: el PDR de
 mensajería es la fracción de `pkt_id` transmitidos que aparecen en recepción.
-No hace falta el contador `seq` propuesto en el repo del proxy.
+No hace falta el contador `seq` propuesto en el repo del PBX.
 
 **Pero hay que contar ids únicos, no eventos.** Los mensajes de teléfono salen
 con `WantAck=1`, así que el nodo retransmite hasta recibir ACK: el mismo `id`
@@ -111,7 +111,7 @@ Dos advertencias más sobre ese cruce:
 
 ## Qué le falta a P1
 
-`proxy_id_to_str()` en `../meshtastic-ble-proxy/src/proxy_protocol.c` lee 16
+`proxy_id_to_str()` en `../meshpbx/src/proxy_protocol.c` lee 16
 bytes de un arreglo de 4, y lo alcanza `proxy_header_to_str()` — la función que
 arma las líneas legibles del firmware. Los `src`/`dst` que imprime son lectura
 fuera de rango, no los ids reales.
@@ -123,8 +123,8 @@ en el `pkt_id` de P2.
 
 Lo único que bloquea es el **desglose por teléfono**: la consola del nodo lleva
 el id de paquete y nunca el `src_id` de la aplicación, así que atribuir una
-pérdida a un handset concreto exige que el log del proxy sea confiable. Detalle
-en [`proxy-frame-wire-format`](../../.claude/memory/proxy-frame-wire-format.md).
+pérdida a un handset concreto exige que el log del PBX sea confiable. Detalle
+en [`pbx-frame-wire-format`](../../.claude/memory/pbx-frame-wire-format.md).
 
 ## Dos trampas al leer estas consolas
 

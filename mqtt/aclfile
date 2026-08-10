@@ -13,7 +13,7 @@
 user gateway
 topic write meshtastic-testbed/#
 
-# Proxy-site edge collectors (ADR-0002). Write ONLY their own subtree.
+# PBX-site edge collectors (ADR-0002). Write ONLY their own subtree.
 user p1
 topic write meshtastic-testbed/p1/#
 

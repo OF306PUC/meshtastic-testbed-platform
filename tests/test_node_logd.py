@@ -122,7 +122,7 @@ class TestRealCaptureTextMessage(unittest.TestCase):
 
 
 class TestRealCapturePrivateApp(unittest.TestCase):
-    """`[meshtastic-sender portnum=256]` — the proxy's routed carrier."""
+    """`[meshtastic-sender portnum=256]` — the PBX's routed carrier."""
 
     def setUp(self):
         self.out = Collected()
@@ -139,7 +139,7 @@ class TestRealCapturePrivateApp(unittest.TestCase):
         # on channel 0; it has since been fixed to channel 1. This pins that the
         # parser reports whatever the console said, which is the only thing a
         # frozen fixture can prove — the live check for the fix is
-        # `SELECT DISTINCT channel FROM proxy_message WHERE portnum='PRIVATE_APP'`
+        # `SELECT DISTINCT channel FROM pbx_message WHERE portnum='PRIVATE_APP'`
         # against InfluxDB, not this test.
         self.assertEqual(rec["channel"], 0)
 
@@ -151,7 +151,7 @@ class TestChannelHashMapping(unittest.TestCase):
 
     The mapping is only ever logged by a RECEIVING node — it has to resolve the
     hash to pick a key — so a sender's console never carries it. A collector
-    sitting on a proxy node therefore learns the table only from traffic that
+    sitting on a PBX node therefore learns the table only from traffic that
     node receives, and must treat an unknown hash as unknown rather than
     guessing zero.
     """
@@ -228,7 +228,7 @@ class TestLifecycleOutcomes(unittest.TestCase):
     def test_handed_over_but_never_transmitted_is_its_own_outcome(self):
         """
         This is the distinction no single vantage point could make before:
-        the proxy handed the frame over and the node never put it on the air, so
+        the PBX handed the frame over and the node never put it on the air, so
         the loss belongs to the UART handoff and not to the radio.
         """
         self.trk.feed(_handed(0xCCCC3333))

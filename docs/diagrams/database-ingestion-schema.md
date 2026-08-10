@@ -38,13 +38,13 @@ flowchart LR
 
     subgraph tg["telegraf.conf"]
         B1["bloque 1<br/>sin name_override"]
-        B2["bloque 2<br/>proxy_message"]
+        B2["bloque 2<br/>pbx_message"]
         B3["bloque 3<br/>pdr"]
     end
 
     subgraph db["InfluxDB"]
         M1[("telemetry")]
-        M2[("proxy_message")]
+        M2[("pbx_message")]
         M3[("pdr")]
     end
 
@@ -87,7 +87,7 @@ Dos cosas que el diagrama hace explícitas:
 ```mermaid
 erDiagram
     telemetry ||--o{ pdr : "node_label"
-    telemetry ||--o{ proxy_message : "node_label"
+    telemetry ||--o{ pbx_message : "node_label"
 
     telemetry {
         tag node_id
@@ -113,7 +113,7 @@ erDiagram
         field cadence_violated "PDR embebido"
     }
 
-    proxy_message {
+    pbx_message {
         tag node_id "relay, no originante"
         tag node_label
         tag portnum "PRIVATE_APP o TEXT_MESSAGE_APP"
@@ -151,7 +151,7 @@ es el único tag que las tres comparten y por el que tiene sentido cruzarlas.
 
 ## Las cuatro reglas que sostienen el diseño
 
-**1. `proxy_message` no puede vivir en `telemetry`.**
+**1. `pbx_message` no puede vivir en `telemetry`.**
 Trae `rssi`/`snr`/`hop` para el mismo `node_id` que la telemetría, pero a
 cadencia dirigida por teléfonos. `monitor/utils.py get_recent()` filtra esos
 gráficos sólo por `node_id`, sin mirar el tópico: compartir measurement
@@ -165,7 +165,7 @@ tenga que ocurrir aguas arriba.
 
 **3. Los valores de tag son la identidad de la serie.**
 `src_id` y `dst_id` se publican como `uint32` decimal (el número telefónico que
-loguea el proxy como `+56<uint32>`). Cambiar ese render más adelante no
+loguea el PBX como `+56<uint32>`). Cambiar ese render más adelante no
 actualiza nada: parte la historia en dos conjuntos de series disjuntos que ya no
 se pueden unir. Por eso el formato del frame se verificó contra
 `client-integration.md` **antes** de dejar escribir.
@@ -180,7 +180,7 @@ que se traducen en campos ausentes y el frontend ya los ignora.
 
 La measurement que falta es la del lado TX (`P1`/`P2` en
 [`data-flow-measurement-points.md`](./data-flow-measurement-points.md)). Sin
-ella, `proxy_message` registra recepciones sin denominador y no hay PDR de
+ella, `pbx_message` registra recepciones sin denominador y no hay PDR de
 mensajería, sólo conteo.
 
 Tampoco hay test de ingesta: los 94 tests cubren el publisher, no

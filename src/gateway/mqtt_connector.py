@@ -146,7 +146,7 @@ class MQTTConnector:
 
     def publish_message(self, node_label: str, payload: dict):
         """
-        Publish proxy message metadata (src/dst ids, link quality, frame sizes).
+        Publish PBX message metadata (src/dst ids, link quality, frame sizes).
 
         Args:
             node_label (str): Label of the mesh node the frame was heard FROM —

@@ -66,7 +66,7 @@ vivo. Es la razón por la que el defecto de ingesta no se notó mirando la panta
 **2. El broker es anónimo.**
 `mqtt/mosquitto.conf` tiene `allow_anonymous true` y el `password_file`
 comentado. Aceptable mientras todo corre en una máquina aislada. Deja de serlo
-en cuanto la RPi del nodo proxy publique desde otra ubicación — que es el plan
+en cuanto la RPi del nodo PBX publique desde otra ubicación — que es el plan
 en [`data-flow-measurement-points.md`](./data-flow-measurement-points.md). Ese
 es el momento de habilitar el `pwfile` (ya está previsto en `.gitignore`).
 

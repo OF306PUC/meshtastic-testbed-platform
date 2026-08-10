@@ -5,10 +5,10 @@
 > with a 5G HAT. No implementation is committed yet — this is a design scratchpad,
 > not a spec. It will graduate to an ADR once the approach is decided.
 >
-> **Scope note (2026-08-06):** this is about the **gateway** only. The proxy sites
+> **Scope note (2026-08-06):** this is about the **gateway** only. The PBX sites
 > also get a Raspberry Pi, but as an edge collector on building WiFi with no
 > cellular backhaul — decided separately in
-> [`ADR-0002`](./ADR-0002-proxy-site-edge-collector.md). Do not conflate the two.
+> [`ADR-0002`](./ADR-0002-pbx-site-edge-collector.md). Do not conflate the two.
 
 ## Motivation
 
@@ -42,7 +42,7 @@ testbed to wherever that machine lives and to campus wired/Wi-Fi networking. A
 **Decided 2026-08-07:** the **full pipeline runs on the Pi** — Mosquitto,
 Telegraf, InfluxDB and `monitor/`. The gateway Pi is therefore the centre of
 gravity of the system, and the three collectors defined in
-[`ADR-0002`](./ADR-0002-proxy-site-edge-collector.md) publish to it. Two
+[`ADR-0002`](./ADR-0002-pbx-site-edge-collector.md) publish to it. Two
 requirements follow: it must **boot from a USB SSD** (InfluxDB on microSD will
 not survive continuous writes and power loss), and it needs a **stable address**
 on the building network, since the remote collectors and every browser have to

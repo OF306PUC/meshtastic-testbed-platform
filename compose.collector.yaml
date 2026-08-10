@@ -1,4 +1,4 @@
-# Proxy-site edge collector (ADR-0002). Runs on the Raspberry Pi AT a proxy
+# PBX-site edge collector (ADR-0002). Runs on the Raspberry Pi AT a PBX
 # site, not on the gateway host — this is a separate deployment from the root
 # docker-compose.yaml and the two are never brought up together.
 #

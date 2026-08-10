@@ -10,20 +10,20 @@ from common.mesh_config import (
 )
 from gateway.mqtt_connector import MQTTConnector
 
-# Proxy application frames, carried inside MeshPacket.decoded.payload.
+# PBX application frames, carried inside MeshPacket.decoded.payload.
 #
 #     portnum=PRIVATE_APP (256)     [VERSION:1][SRC_ID:4][DST_ID:4][content:N]
 #     portnum=TEXT_MESSAGE_APP (1)  [VERSION:1][SRC_ID:4][content:N]
 #
-# PRIVATE_APP is the proxy's routed unicast carrier: DST_ID names which phone
-# behind the target node should receive it, so the proxy can deliver to a single
-# BLE connection.  TEXT_MESSAGE_APP carries no destination — the proxy broadcasts
+# PRIVATE_APP is the PBX's routed unicast carrier: DST_ID names which phone
+# behind the target node should receive it, so the PBX can deliver to a single
+# BLE connection.  TEXT_MESSAGE_APP carries no destination — the PBX broadcasts
 # it to every connection — so its header is 4 bytes shorter.
 #
 # A proxy_id is a 4-byte BIG-ENDIAN uint32: the phone's national number without
-# country code, which the proxy logs as "+56<uint32>".  It is NOT a Meshtastic
+# country code, which the PBX logs as "+56<uint32>".  It is NOT a Meshtastic
 # node id and must not be rendered like one; it is published in decimal so it
-# matches the proxy log and what the phone writes to NODE_REG.
+# matches the PBX log and what the phone writes to NODE_REG.
 
 _FRAME_HDR_UNICAST   = struct.Struct(">BII")   # version, src_id, dst_id -> 9 B
 _FRAME_HDR_BROADCAST = struct.Struct(">BI")    # version, src_id         -> 5 B
@@ -210,11 +210,11 @@ class CadencePdrTracker:
 class MeshReceiver:
     """
     Connects to the local Meshtastic gateway over serial, listens for telemetry,
-    position and proxy-message packets from known nodes, publishes them to MQTT,
+    position and PBX-message packets from known nodes, publishes them to MQTT,
     and estimates per-flow packet delivery ratio from the known broadcast
     cadence (see CadencePdrTracker).
 
-    Proxy application frames come in two shapes, selected by portnum:
+    PBX application frames come in two shapes, selected by portnum:
         PRIVATE_APP       [version:1][src_id:4][dst_id:4][content]  routed unicast
         TEXT_MESSAGE_APP  [version:1][src_id:4][content]            broadcast
 
@@ -240,7 +240,7 @@ class MeshReceiver:
                              tracked for that flow.  Defaults to the sensing-node
                              profile for every known node.
             pdr_window_sec:  {kind: seconds} rolling-window length per flow kind.
-            capture_content: publish proxy message *content*, not just metadata.
+            capture_content: publish PBX message *content*, not just metadata.
                              Off by default: these are real phone messages, and
                              the MQTT stream is persisted into InfluxDB.
         """
@@ -443,11 +443,11 @@ class MeshReceiver:
             rssi: int, snr: int, hop: int, channel: int, received_at: int,
             pkt_id=None):
         """
-        Parses one proxy application frame and publishes its metadata.
+        Parses one PBX application frame and publishes its metadata.
 
         No PDR here: phone messages have no cadence to measure against.
         """
-        frame = self._parse_proxy_frame(payload, portnum)
+        frame = self._parse_pbx_frame(payload, portnum)
         if frame is None:
             n = len(payload) if payload else 0
             print(f"[MSG] Malformed {portnum} frame from {label} ({node_id}): {n} B")
@@ -494,13 +494,13 @@ class MeshReceiver:
         self.mqtt.publish_message(label, record)
 
     @classmethod
-    def _parse_proxy_frame(cls, payload, portnum: str) -> dict:
+    def _parse_pbx_frame(cls, payload, portnum: str) -> dict:
         """
-        Unpacks a proxy frame using the header layout its portnum implies
+        Unpacks a PBX frame using the header layout its portnum implies
         (see _FRAME_HDRS).  Broadcast frames carry no destination, so "dst_id"
         comes back None rather than a fabricated value.
 
-        Returns None when the portnum carries no proxy header, the payload is
+        Returns None when the portnum carries no PBX header, the payload is
         not bytes, it is shorter than that header, or the VERSION byte is not
         one this parser knows — a truncated or future-format frame must be
         reported as a loss, not guessed at.
@@ -523,7 +523,7 @@ class MeshReceiver:
         offset = hdr.size
         return {
             "fw_ver":      fw_ver,
-            # Decimal uint32: matches how the proxy logs the id ("+56<uint32>")
+            # Decimal uint32: matches how the PBX logs the id ("+56<uint32>")
             # and what the phone writes to NODE_REG, so the ids cross-reference
             # with the firmware side instead of only with themselves.
             "src_id":      str(src),

@@ -7,7 +7,7 @@ Connects to a node over serial and reports, in one pass:
   2. Device config      – every setting the configure scripts touch, read back
                           from the node (device/role, BLE, LoRa, GPS + intervals,
                           telemetry intervals, serial module). Role-agnostic:
-                          works for sensor, gateway and proxy nodes alike.
+                          works for sensor, gateway and PBX nodes alike.
   3. Radio health-check – region / preset / rebroadcast / channels / PSKs
                           compared against common/radio_config.py. A mismatch
                           here means this node cannot talk to the rest of the
@@ -81,7 +81,7 @@ def human_age(last_heard) -> str:
 def decode_psk(psk_b64: str) -> bytes:
     """Decode a channel PSK as stored in .env: 'base64:<key>' or bare base64.
 
-    Mirrors proxy/configure.py::decode_psk so the health-check compares against
+    Mirrors pbx/configure.py::decode_psk so the health-check compares against
     exactly what the configuration scripts write to the device.
     """
     if psk_b64 and psk_b64.startswith("base64:"):
@@ -184,7 +184,7 @@ def print_local_node(iface, info: dict) -> str:
 
 def print_device_config(iface) -> None:
     """Dump every setting the configuration scripts touch, as read back from
-    the node — so any node (sensor / gateway / proxy) can be verified against
+    the node — so any node (sensor / gateway / PBX) can be verified against
     what it was meant to be. Pure reporting: the expected values are
     role-specific (they live in each role's configure_params.py), so this
     section does not judge, it just shows the on-device truth.
@@ -230,7 +230,7 @@ def print_device_config(iface) -> None:
              fmt(field(mod.telemetry, "environment_update_interval"), " s"))
         show("telemetry.environment_measurement_enabled",
              field(mod.telemetry, "environment_measurement_enabled"))
-        # Serial module: only meaningful on the proxy-attached nodes (Stream
+        # Serial module: only meaningful on the PBX-attached nodes (Stream
         # API on UART1), but shown for every node for completeness.
         show("serial.enabled", field(mod.serial, "enabled"))
         show("serial.mode", enum_name(mod.serial, "mode"))

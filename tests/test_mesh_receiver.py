@@ -54,7 +54,7 @@ def _make_receiver(intervals=None):
 
 
 def _private_packet(payload: bytes, pkt_id=None):
-    """Synthetic PRIVATE_APP packet carrying a raw proxy frame."""
+    """Synthetic PRIVATE_APP packet carrying a raw PBX frame."""
     return {
         "fromId":   _KNOWN_NODE_ID,
         "from":     0x0B64122B,
@@ -70,7 +70,7 @@ def _private_packet(payload: bytes, pkt_id=None):
     }
 
 
-# proxy_ids are BIG-ENDIAN uint32 phone numbers without country code (the proxy
+# PBX ids are BIG-ENDIAN uint32 phone numbers without country code (the PBX
 # logs them as "+56<uint32>"), NOT Meshtastic node ids. 352953967 is the handset
 # that confirmed the byte order: it puts 0x1509A66F on the wire and the firmware
 # logs it as "+56352953967".
@@ -78,11 +78,11 @@ _SRC_PHONE = 352953967
 _DST_PHONE = 987654321
 
 
-class TestProxyIdByteOrder(unittest.TestCase):
+class TestPbxIdByteOrder(unittest.TestCase):
     """
     Locks the wire byte order down against a real capture.
 
-    The proxy repo contradicts itself — client-integration.md 4.1 says
+    The PBX repo contradicts itself — client-integration.md 4.1 says
     little-endian, every sys_get_be32() call site says big-endian — and the
     disagreement is invisible in operation because routing compares ids with
     memcmp over raw bytes. It only shows up as wrong numbers, which then become
@@ -101,7 +101,7 @@ class TestProxyIdByteOrder(unittest.TestCase):
         self.assertNotEqual(payload["src_id"], "1873874197")
 
 
-def _proxy_frame(fw_ver=1, src=_SRC_PHONE, dst=_DST_PHONE, content=b"hello"):
+def _pbx_frame(fw_ver=1, src=_SRC_PHONE, dst=_DST_PHONE, content=b"hello"):
     """PRIVATE_APP frame: [version][src_id][dst_id][content] — 9-byte header."""
     return struct.pack(">BII", fw_ver, src, dst) + content
 
@@ -112,7 +112,7 @@ def _broadcast_frame(fw_ver=1, src=_SRC_PHONE, content=b"hello"):
 
 
 def _text_packet(payload: bytes, pkt_id=None):
-    """Synthetic TEXT_MESSAGE_APP packet carrying a broadcast proxy frame."""
+    """Synthetic TEXT_MESSAGE_APP packet carrying a broadcast PBX frame."""
     pkt = _private_packet(payload, pkt_id)
     pkt["decoded"]["portnum"] = "TEXT_MESSAGE_APP"
     return pkt
@@ -243,7 +243,7 @@ class TestBooleanFieldsArePublishedAsIntegers(unittest.TestCase):
 
     def test_malformed_flag_is_an_int_on_both_paths(self):
         receiver, fake = _make_receiver()
-        receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         receiver._on_receive(_private_packet(b"\x01\x02"), interface=None)
 
         good, bad = fake.message_calls[0][1], fake.message_calls[1][1]
@@ -288,9 +288,9 @@ class TestChannelCapture(unittest.TestCase):
         self.assertEqual(payload["channel"], 0)
         self.assertIsNotNone(payload["channel"])
 
-    def test_channel_is_carried_on_proxy_messages(self):
+    def test_channel_is_carried_on_pbx_messages(self):
         receiver, fake = _make_receiver()
-        pkt = _private_packet(_proxy_frame())
+        pkt = _private_packet(_pbx_frame())
         pkt["channel"] = 1
         receiver._on_receive(pkt, interface=None)
 
@@ -652,14 +652,14 @@ class TestMalformedPackets(unittest.TestCase):
             self.fail(f"Missing 'decoded' raised {exc}")
 
 
-class TestProxyMessageFrame(unittest.TestCase):
-    """PRIVATE_APP frames from the BLE proxy: [fw_ver][src_id][dst_id][content]."""
+class TestPbxMessageFrame(unittest.TestCase):
+    """PRIVATE_APP frames from the PBX: [fw_ver][src_id][dst_id][content]."""
 
     def setUp(self):
         self.receiver, self.fake = _make_receiver()
 
     def test_valid_frame_publishes_src_and_dst(self):
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
 
         self.assertEqual(len(self.fake.message_calls), 1)
         label, payload = self.fake.message_calls[0]
@@ -679,7 +679,7 @@ class TestProxyMessageFrame(unittest.TestCase):
         "every phone messages itself" and would freeze a duplicate of src into
         the dst_id InfluxDB tag.
         """
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
         self.assertNotEqual(payload["src_id"], payload["dst_id"])
 
@@ -689,13 +689,13 @@ class TestProxyMessageFrame(unittest.TestCase):
         app-level originator. Conflating them would misattribute every relayed
         message to the relay.
         """
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
         self.assertEqual(payload["node_id"], _KNOWN_NODE_ID)
         self.assertNotEqual(payload["src_id"], payload["node_id"])
 
     def test_link_quality_is_carried(self):
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
         self.assertEqual(payload["rssi"], -95)
         self.assertAlmostEqual(payload["snr"], 3.5)
@@ -704,7 +704,7 @@ class TestProxyMessageFrame(unittest.TestCase):
     def test_empty_content_is_valid(self):
         """A header-only frame is well-formed: 9 bytes, zero-length content."""
         self.receiver._on_receive(
-            _private_packet(_proxy_frame(content=b"")), interface=None)
+            _private_packet(_pbx_frame(content=b"")), interface=None)
 
         _, payload = self.fake.message_calls[0]
         self.assertFalse(payload["malformed"])
@@ -733,7 +733,7 @@ class TestProxyMessageFrame(unittest.TestCase):
 
     def test_unknown_version_reported_as_malformed(self):
         """
-        The proxy has a proposed v2 (a 2-byte seq at offset 9). Parsing a v2
+        The PBX has a proposed v2 (a 2-byte seq at offset 9). Parsing a v2
         frame against the v1 layout would silently shift the content and
         corrupt every field after it, so an unknown VERSION must be rejected.
         """
@@ -747,7 +747,7 @@ class TestProxyMessageFrame(unittest.TestCase):
 
     def test_no_seq_field_is_published(self):
         """v1 has no sequence counter; publishing a null one invited misuse."""
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
         self.assertNotIn("seq", payload)
 
@@ -756,19 +756,19 @@ class TestProxyMessageFrame(unittest.TestCase):
         Message bodies are real phone traffic and the MQTT stream is persisted,
         so content is opt-in via capture_content.
         """
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
         self.assertNotIn("content_hex", payload)
 
     def test_content_published_when_capture_enabled(self):
         self.receiver.capture_content = True
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
         self.assertEqual(payload["content_hex"], b"hello".hex())
 
     def test_messages_carry_no_pdr_fields(self):
         """Phone messages have no cadence, so no ratio can be inferred."""
-        self.receiver._on_receive(_private_packet(_proxy_frame()), interface=None)
+        self.receiver._on_receive(_private_packet(_pbx_frame()), interface=None)
         _, payload = self.fake.message_calls[0]
         for key in ("pdr", "pdr_window", "missed_est"):
             self.assertNotIn(key, payload)
@@ -778,7 +778,7 @@ class TestBroadcastMessageFrame(unittest.TestCase):
     """
     TEXT_MESSAGE_APP frames: [version][src_id][content], 5-byte header.
 
-    The proxy broadcasts these to every BLE connection because they carry no
+    The PBX broadcasts these to every BLE connection because they carry no
     destination, so the header is 4 bytes shorter than the routed PRIVATE_APP
     one.  Parsing them against the 9-byte layout would eat 4 bytes of content
     and read the first content bytes as a destination.

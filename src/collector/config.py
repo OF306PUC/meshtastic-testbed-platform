@@ -1,6 +1,6 @@
 import os
 
-# Which proxy site this collector runs at. It is both the MQTT topic segment and
+# Which PBX site this collector runs at. It is both the MQTT topic segment and
 # the broker account name, because mqtt/aclfile confines each site to its own
 # subtree — a collector at p1 cannot write p2's namespace even by mistake.
 SITE = os.getenv("COLLECTOR_SITE", "p1")
@@ -21,7 +21,7 @@ MQTT_USERNAME = os.getenv("MQTT_USERNAME", SITE)
 MQTT_PASSWORD = (os.getenv(f"MQTT_PASSWORD_{SITE.upper()}")
                  or os.getenv("MQTT_PASSWORD", ""))
 
-TOPIC = os.getenv("COLLECTOR_TOPIC", f"meshtastic-testbed/{SITE}/proxy")
+TOPIC = os.getenv("COLLECTOR_TOPIC", f"meshtastic-testbed/{SITE}/pbx")
 
 # How long an unresolved packet is held before being reported as finished.
 # It MUST exceed the firmware's retransmission budget: expire too early and a

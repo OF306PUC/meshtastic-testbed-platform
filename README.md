@@ -261,7 +261,7 @@ must be generated **together** on each host: copying one and regenerating the
 other leaves the hashes out of step with the passwords.
 
 Five accounts are created, one per role, with per-topic rules in `mqtt/aclfile`.
-The proxy collectors `p1`/`p2` may write only their own subtree, so neither can
+The PBX collectors `p1`/`p2` may write only their own subtree, so neither can
 forge the other's measurements.
 
 The runtime stack runs entirely in Docker — no Python install is needed to run it. A local virtualenv is only required for the **one-time hardware-configuration scripts** (`configure.py`, `check_node_info.py`, `plot_history.py`):
@@ -406,10 +406,10 @@ SELECT * FROM telemetry WHERE node_id='!7c70da02' ORDER BY time DESC LIMIT 5
 | Measurement | Fed by | Holds |
 |---|---|---|
 | `telemetry` | `position`, `device`, `environment` | Telemetry + the PDR fields that ride inside it |
-| `proxy_message` | `message` | Proxy frame metadata: `portnum`, `channel`, `src_id`, `dst_id`, `pkt_id`, link quality |
+| `pbx_message` | `message` | PBX frame metadata: `portnum`, `channel`, `src_id`, `dst_id`, `pkt_id`, link quality |
 | `pdr` | `pdr` | Losses inferred while a flow was silent — the only way a fully dead node becomes visible |
 
-If `proxy_message` or `pdr` is missing, Telegraf is not consuming those topics.
+If `pbx_message` or `pdr` is missing, Telegraf is not consuming those topics.
 They are published at QoS 1 regardless, so a subscriber sees them even when the
 database does not — check the broker before concluding the gateway is at fault:
 

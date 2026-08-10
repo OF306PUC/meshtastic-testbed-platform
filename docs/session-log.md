@@ -120,6 +120,86 @@ hiciera el orquestador.
   UART), reconciliador en la Pi, pipeline completo en el borde, y esperar al `seq`
   v2 en vez de usar `pkt_id`.
 
+## 2026-08-10 — Rename a meshpbx + `telemetry`, y prueba con hardware real
+**Time:** (aprox)
+**User request:** probar el colector contra hardware, y renombrar todo lo que
+diga "proxy" — el proyecto pasa a llamarse **meshpbx**, porque lo que hace es
+una *private branch exchange*.
+
+### Prueba con hardware — dos defectos que ningún test podía encontrar
+- LiLyGO en `/dev/ttyACM0` (WCH/CH34x) y nordic en `/dev/ttyACM2` (SEGGER
+  J-Link). Nota lateral: `/dev/ttyACM1` era un teléfono Samsung — exactamente el
+  escenario que corre la numeración y por el que hay que usar `by-id`.
+- **La consola en vivo emite ANSI de color.** `\x1b[32mINFO \x1b[0m| …`, así que
+  la línea no empieza con el nivel y **52 de 52 líneas se rechazaban**: el
+  colector no habría publicado nada, pareciendo sano. Los escapes no están en
+  `docs/log-parsing.txt` porque copiar del panel del SerialMonitor los elimina —
+  leer el dispositivo es la única forma de verlos. `lines_rejected` delató la
+  deriva en veinte segundos, que es para lo que existe.
+- **La placa se resetea en el ciclo cerrar/abrir.** Medido: con el puerto
+  sostenido el uptime sube monotónico sin caídas; al cerrar y reabrir arranca en
+  0 con `rst:0x1 (POWERON_RESET)` del bootloader ROM. **HUPCL ya estaba en
+  `False`**, así que mi hipótesis era errónea; el culpable es el circuito de
+  auto-programación reaccionando a transiciones que hace el driver, y
+  `dtr=False` antes de `open()` no lo evita.
+- Bug real encontrado en el camino: `_disable_hupcl()` leía `self._ser`, que
+  todavía es `None` mientras corre `_open()`, así que no hacía nada y sin avisar.
+  Corregido, aunque no era la causa del síntoma.
+- **Consecuencia operativa:** abrir una vez y no cerrar nunca. Y para instalación
+  permanente, cablear el UART del GPIO de la Pi al UART0 del LiLyGO con tres
+  hilos — sin DTR ni RTS en el camino, y de paso elimina la renumeración.
+  Riesgo a vigilar: un colector en crash-loop rebootea el nodo en cada intento.
+
+### `mqtt_consumer` → `telemetry`
+- Era el nombre que Telegraf asigna por defecto: describe cómo llegó el dato, no
+  qué es, y convivía con `pdr` y `pbx_message`, ambos nombrados a propósito. La
+  inconsistencia estaba al revés: el nombre accidental tenía los datos importantes.
+- Se hizo ahora porque es una **migración**, no un cambio de config: no existe
+  rename en InfluxDB 1.x. `SELECT * INTO "telemetry" FROM "mqtt_consumer" GROUP BY *`
+  — el `GROUP BY *` no es opcional, sin él los tags se aplanan a fields y se
+  destruye la estructura de series en silencio. 57.489 puntos, 8 series, conteos
+  verificados iguales y tags confirmados como tags. A este volumen fueron
+  segundos; con datos de campo acumulados no lo habría sido.
+- Tres consumidores habrían quedado en blanco sin aviso: `monitor/utils.py` (como
+  default del constructor), `src/tools/plot_history.py` (dos consultas) y las
+  consultas documentadas del README y del playbook. Las tres formas se
+  re-ejecutaron contra `telemetry`.
+- `mqtt_consumer` se dejó en pie; dropearlo es una línea cuando se ejercite el
+  dashboard con el stack arriba.
+
+### Rename proxy → pbx
+- `src/proxy/` → `src/pbx/`, ADR-0002 renombrado, `pbx_message`, `pbx_health`,
+  tópico `.../pbx`, `_parse_pbx_frame`, `pbx_logd`, memoria
+  `pbx-frame-wire-format`, y las referencias a `../meshtastic-ble-proxy` →
+  `../meshpbx`. 273 líneas en 33 archivos.
+- **Convención adoptada:** `meshpbx` para el proyecto y el repo, `pbx` para
+  identificadores de código y datos. `meshpbx_message` sería redundante.
+- **NO se renombró, a propósito:** las etiquetas `p1`/`p2` (son sitios, y además
+  son las cuentas del broker y las reglas del ACL — renombrarlas obligaría a
+  regenerar `pwfile` en tres máquinas); el prefijo `meshtastic-testbed/`; y los
+  nombres de flujo (`device`, `environment`, `position`, `message`, `pdr`).
+- **Tampoco los símbolos del firmware**: `proxy_id`, `proxy_id_to_str()`,
+  `proxy_protocol.c`, `PROXY_VERSION` se citan literales porque son
+  identificadores externos. Anotado en la memoria para que nadie los "corrija".
+- Las entradas viejas de esta bitácora se dejaron sin tocar: son registro
+  histórico y reescribirlas sería falsificar la cronología.
+- **Dos errores encontrados en las memorias al pasar:** decían "decimal **LE**
+  uint32" cuando habíamos establecido big-endian, y quedaban rutas
+  `src/proxy/configure.py`. El primero es serio: esa memoria existe justamente
+  para evitar ese error.
+
+### Outcomes
+- 118 tests en verde, todos los módulos compilan, los 7 bloques Mermaid de los
+  tres diagramas siguen renderizando.
+
+### Next steps / open questions
+- Falta el bridge Mosquitto local antes de instalar en terreno.
+- `pbx-logd` desbloqueado; el fix de `proxy_id_to_str()` ya está aguas arriba.
+- Cuando exista el repo `meshpbx`, revisar si sus símbolos internos se renombran
+  y actualizar las citas literales de este repo.
+
+---
+
 ## 2026-08-10 — `node-logd`: el parser de la consola del nodo (P2)
 **Time:** (aprox)
 **User request:** diseñar y desplegar el parser de logs en la Pi del proxy.

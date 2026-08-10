@@ -1,6 +1,6 @@
 # Shared reader for mesh_config.json.
 #
-# Both the provisioning scripts (src/node/configure.py, src/proxy/configure.py)
+# Both the provisioning scripts (src/node/configure.py, src/pbx/configure.py)
 # and the gateway receiver resolve broadcast cadences through this module, so the
 # interval a node is *configured* with and the interval the gateway *measures*
 # against can never drift apart — the same single-source rule that
@@ -21,7 +21,7 @@
 #
 # `intervals` is AUTHORITATIVE AND COMPLETE per node — absent kinds are NOT
 # filled in from defaults. A node that does not broadcast environment telemetry
-# (the proxy-attached nodes don't) simply omits that key, and the gateway then
+# (the PBX-attached nodes don't) simply omits that key, and the gateway then
 # tracks no PDR for that flow instead of measuring against a cadence the node
 # never had. Defaults apply only when a node has no `intervals` block at all.
 import json

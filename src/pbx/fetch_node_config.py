@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 fetch_node_config.py - Capture a Meshtastic node's want_config burst over a
-DIRECT USB serial link (bypassing the GATT/mesh proxy).
+DIRECT USB serial link (bypassing the PBX and the mesh).
 
 Purpose
 -------

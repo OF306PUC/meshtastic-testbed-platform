@@ -82,7 +82,7 @@ MQTT_PASSWORD_MONITOR=${PASS[monitor]}
 MQTT_PASSWORD_P1=${PASS[p1]}
 MQTT_PASSWORD_P2=${PASS[p2]}
 
-The p1/p2 passwords belong on the proxy-site Pis, not in this file — they are
+The p1/p2 passwords belong on the PBX-site Pis, not in this file — they are
 printed here only because this is the one moment they exist in plaintext.
 
 Then: docker compose up -d --force-recreate

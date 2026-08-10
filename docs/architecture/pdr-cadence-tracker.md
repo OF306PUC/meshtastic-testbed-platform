@@ -20,7 +20,7 @@ Lo que sí tenemos es que **la cadencia de emisión es conocida y la fijamos
 nosotros**: `telemetry.device_update_interval`,
 `telemetry.environment_update_interval` y `position.position_broadcast_secs` se
 provisionan desde `mesh_config.json` (`src/node/configure.py`,
-`src/proxy/configure.py`). Si un nodo está configurado para emitir cada `T`
+`src/pbx/configure.py`). Si un nodo está configurado para emitir cada `T`
 segundos y pasan `3T` entre dos recepciones, faltaron ~2 paquetes.
 
 Eso es todo el estimador: **las pérdidas se infieren de los huecos entre
@@ -295,7 +295,7 @@ por `sweep()` van al topic nuevo `.../pdr` con `"source": "sweep"`.
 
 - **Cadencias autoritativas y completas por nodo.** Si un nodo no declara un
   `kind` en `intervals`, significa "este nodo no lo emite" y **no se le mide
-  PDR** para ese flujo — no se rellena con defaults. Los nodos con proxy no
+  PDR** para ese flujo — no se rellena con defaults. Los nodos con PBX no
   emiten `environment`; medirlos contra una cadencia que nunca tuvieron
   fabricaría pérdidas del 100 %.
 
@@ -303,10 +303,10 @@ por `sweep()` van al topic nuevo `.../pdr` con `"source": "sweep"`.
   reordenamiento de paquetes. Innecesario a estas tasas de emisión; anotado en
   el docstring por si aparece en campo.
 
-- **Los mensajes del proxy no aportan PDR.** No tienen cadencia contra la cual
+- **Los mensajes del PBX no aportan PDR.** No tienen cadencia contra la cual
   medir. Se capturan y publican (metadata; el contenido sólo con
   `capture_content=True`), y el PDR a nivel mensaje queda pendiente de que el
-  firmware del proxy emita el contador `seq` — el parser ya lo soporta detrás del
+  firmware del PBX emita el contador `seq` — el parser ya lo soporta detrás del
   flag `FRAME_HAS_SEQ`.
 
 ---
@@ -322,7 +322,7 @@ por `sweep()` van al topic nuevo `.../pdr` con `"source": "sweep"`.
    correctamente contado como pérdida total — eso es intencional.
 4. **`pdr` es `None` con un solo paquete.** No hay información de entrega en una
    sola muestra.
-5. **La ventana de los flujos de proxy es demasiado corta** con `window_sec`
+5. **La ventana de los flujos de PBX es demasiado corta** con `window_sec`
    uniforme de 3600 s (§7). Está visible en `pdr_window_slots`; la corrección es
    un cambio de configuración, no de código.
 

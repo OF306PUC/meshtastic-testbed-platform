@@ -1,4 +1,4 @@
-# Dependency set for the proxy-site edge collector.
+# Dependency set for the PBX-site edge collector.
 #
 # Deliberately smaller than src/gateway/requirements.txt: the collector reads
 # the node console as TEXT and never speaks the Meshtastic protocol, so the

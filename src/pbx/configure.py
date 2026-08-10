@@ -10,11 +10,11 @@ import meshtastic.serial_interface
 # Make the `src/` package root importable when run directly.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from proxy import configure_params as node_params  # noqa: E402
+from pbx import configure_params as node_params  # noqa: E402
 from common import mesh_config  # noqa: E402
 from common.meshtastic_cli import get_config_value  # noqa: E402
 
-# Resolve relative to repo root (this file lives at <root>/src/proxy/configure.py),
+# Resolve relative to repo root (this file lives at <root>/src/pbx/configure.py),
 # so it works regardless of the current working directory.
 MESH_CONFIG_PATH = str(Path(__file__).resolve().parents[2] / "mesh_config.json")
 
@@ -81,19 +81,19 @@ def decode_psk(psk_b64: str) -> bytes:
 
 
 def load_config(node_id):
-    """Returns (node_cfg, intervals) for one proxy node from mesh_config.json."""
+    """Returns (node_cfg, intervals) for one PBX node from mesh_config.json."""
     data = mesh_config.load(MESH_CONFIG_PATH)
     cfg  = mesh_config.node_cfg(data, node_id)
     return cfg, mesh_config.intervals_for(cfg)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Configure the Meshtastic node attached to the BLE proxy.")
-    parser.add_argument("--node-id", required=True, help="Proxy node entry in mesh_config.json (e.g. 'p1', 'p2')")
+    parser = argparse.ArgumentParser(description="Configure the Meshtastic node attached to the PBX.")
+    parser.add_argument("--node-id", required=True, help="PBX node entry in mesh_config.json (e.g. 'p1', 'p2')")
     parser.add_argument("--port", required=True, help="Serial port of the device (e.g. /dev/ttyUSB0)")
     args = parser.parse_args()
 
-    # Per-proxy settings (p1 and p2 have different hop limits) live in
+    # Per-PBX settings (p1 and p2 have different hop limits) live in
     # mesh_config.json, same registry as the sensing nodes.
     node_cfg, intervals = load_config(args.node_id)
     hop_limit = node_cfg["hop_limit"]
@@ -104,7 +104,7 @@ def main() -> int:
     # the radio and untracked by the gateway.
     print(f"Broadcast cadences from mesh_config.json: {intervals}")
 
-    # radio_config already enforces the telemetry PSK; the proxy node also
+    # radio_config already enforces the telemetry PSK; the PBX node also
     # needs the messaging channel key, so fail early if it is missing.
     if not node_params.CHANNEL_MSG_PSK_B64:
         print(
@@ -123,7 +123,7 @@ def main() -> int:
         if not run(cmd):
             failures.append(label)
 
-    print(f"Starting proxy-node configuration of '{args.node_id}' on {args.port}...")
+    print(f"Starting PBX-node configuration of '{args.node_id}' on {args.port}...")
 
     # LoRa config: region, preset, hop limit. sx126x_rx_boosted_gain is
     # honoured only by SX126x radios; on an SX127x T-Beam it is stored but
@@ -151,7 +151,7 @@ def main() -> int:
     else:
         print(f"Verified device.rebroadcast_mode = {node_params.REBROADCAST_MODE}")
 
-    # Bluetooth config: off — the nRF52840 proxy serves the BLE side.
+    # Bluetooth config: off — the nRF52840 PBX serves the BLE side.
     ble = str(node_params.BLUETOOTH_ENABLE).lower()
     step("bluetooth", mesh + ["--set", "bluetooth.enabled", ble])
 
@@ -190,7 +190,7 @@ def main() -> int:
                             str(intervals["device"])]
     step("telemetry", mesh + telemetry_flags)
 
-    # Serial module config: Stream API on UART1 → the BLE proxy drives the node.
+    # Serial module config: Stream API on UART1 → the PBX drives the node.
     serial_en = str(node_params.SERIAL_MODULE_ENABLE).lower()
     if node_params.SERIAL_MODULE_ENABLE:
         step("serial module", mesh + [

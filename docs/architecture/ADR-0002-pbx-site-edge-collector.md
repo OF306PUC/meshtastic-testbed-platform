@@ -1,53 +1,53 @@
-# ADR-0002 — Raspberry Pi as the proxy-site edge collector
+# ADR-0002 — Raspberry Pi as the PBX-site edge collector
 
 **Status:** Accepted — not implemented. Two preconditions open (see Open questions).
 **Date:** 2026-08-06 · **Revised:** 2026-08-07 (P2 re-scoped, F3 cancelled, three Pis)
 **Owner:** technical-director
 **Related:** docs/diagrams/data-flow-measurement-points.md;
 docs/diagrams/container-topology.md; docs/architecture/gateway-rpi-5g.md;
-memory [[proxy-frame-wire-format]], [[data-contract-gateway-web]]
+memory [[pbx-frame-wire-format]], [[data-contract-gateway-web]]
 
 ## Context
 
-A proxy node is a pair: an **nRF52840** running the BLE proxy firmware
-(`../meshtastic-ble-proxy`) joined over UART to a **LiLyGO** running stock
+A PBX node is a pair: an **nRF52840** running the PBX firmware
+(`../meshpbx`) joined over UART to a **LiLyGO** running stock
 Meshtastic. Two such pairs exist, `p1` and `p2`, installed at **separate sites**.
 Neither board can source power to the other, so each pair needs two USB
-supplies — which, done from a host computer, pins every proxy to a desk.
+supplies — which, done from a host computer, pins every PBX to a desk.
 
 That is the stated problem, and it is the least interesting one.
 
 The real problem is **observability**. Today `p1`/`p2` are visible only through
-what survives the LoRa hop to the gateway: every measurement of the proxy is
+what survives the LoRa hop to the gateway: every measurement of the PBX is
 taken *through* the medium being measured. Three consequences:
 
 - **Message-level PDR has no denominator.** Phone traffic is aperiodic, so the
   cadence estimator (`CadencePdrTracker`) does not apply — silence carries no
   information. Nothing records what was *sent*.
 - **Three different losses are collapsed into one number.** A packet can die on
-  BLE (phone→proxy), at the Stream API handoff over UART (proxy→node), or on the
+  BLE (phone→PBX), at the Stream API handoff over UART (PBX→node), or on the
   air (node→gateway). A low ratio does not say which.
-- **Proxy-internal events are entirely invisible.** Phones connecting and
+- **PBX-internal events are entirely invisible.** Phones connecting and
   disconnecting, the 6-connection limit being hit, TX-queue drops, UART overruns,
-  node reboots seen from the proxy side.
+  node reboots seen from the PBX side.
 
 The last one is the cheapest to fix and was overlooked: the firmware **already
 logs all of it** over its USB VCOM, and nobody is reading that port.
 
 ## Decision
 
-Install a **Raspberry Pi at each proxy site** as an **edge collector**: it powers
+Install a **Raspberry Pi at each PBX site** as an **edge collector**: it powers
 both boards, taps their two serial interfaces, and publishes metrics into the
 existing MQTT→Telegraf→InfluxDB pipeline. It is a publisher, not a second
 pipeline.
 
 ### What runs on it
 
-1. **`proxy-logd`** — reads the nRF52840 VCOM, parses the firmware log, publishes
-   counters and events to `meshtastic-testbed/<p1|p2>/proxy`, landing in a new
-   `proxy_health` measurement via a fourth Telegraf block. **Unblocked; this is
+1. **`pbx-logd`** — reads the nRF52840 VCOM, parses the firmware log, publishes
+   counters and events to `meshtastic-testbed/<p1|p2>/pbx`, landing in a new
+   `pbx_health` measurement via a fourth Telegraf block. **Unblocked; this is
    the primary job.** The line `TX queue full — ToRadio ... dropped` is a *direct*
-   measurement of the proxy→node loss segment — a counter, not an inference.
+   measurement of the PBX→node loss segment — a counter, not an inference.
 2. **`node-logd`** — reads the LiLyGO's USB console as **plain text**, i.e.
    measurement point P2. Meshtastic emits a full TX lifecycle carrying the packet
    id, which is the same `pkt_id` the gateway already records:
@@ -60,7 +60,7 @@ pipeline.
    [RadioIf] Completed sending  (id=0x19f326ba ...)                went on air
    ```
 
-   Three stages, so a packet the proxy handed over but the node never transmitted
+   Three stages, so a packet the PBX handed over but the node never transmitted
    is distinguishable from one transmitted and lost on the air. The console also
    emits cumulative counters — `txGood=26,txRelay=16,rxGood=60,rxBad=0` — which
    are monotonic and therefore self-healing against dropped log lines.
@@ -74,21 +74,21 @@ pipeline.
 ### What does not run on it
 
 InfluxDB, Telegraf and the dashboard stay central. So does **the TX↔RX
-reconciler**: TX is observed at the proxy but RX at the gateway, and the broker
+reconciler**: TX is observed at the PBX but RX at the gateway, and the broker
 and database live wherever the gateway runs. The reconciler becomes a new
 service in the gateway's compose stack. Keeping the Pi a dumb publisher keeps it
 replaceable — which matters for the device that sits in the field.
 
-**Three Raspberry Pis in total**, not two: one collector per proxy site (`p1`,
+**Three Raspberry Pis in total**, not two: one collector per PBX site (`p1`,
 `p2`, separate locations) plus the gateway. The gateway Pi **runs the full
 compose stack** — Mosquitto, Telegraf, InfluxDB and the dashboard — and may
-itself be housed at one of the proxy sites. Two consequences of that placement
+itself be housed at one of the PBX sites. Two consequences of that placement
 are recorded under Open questions.
 
 ### Backhaul
 
 **Building WiFi, 5 GHz (red MIDE).** No cellular, no HAT, no data plan. This
-decouples the proxy sites from `gateway-rpi-5g.md`, which concerns moving the
+decouples the PBX sites from `gateway-rpi-5g.md`, which concerns moving the
 *gateway* and remains open on its own terms.
 
 ### Power and grounding
@@ -103,17 +103,17 @@ reference. A single supply guarantees it.
 
 - Three measurement points instead of one, so losses become attributable per
   segment rather than pooled.
-- Proxy health becomes observable at all, with no firmware change required.
+- PBX health becomes observable at all, with no firmware change required.
 - Common ground guaranteed by construction.
 - Nothing central changes except one Telegraf block and one new service; the
   data contract is extended additively.
-- Each proxy site becomes self-contained and no longer tethered to a desk.
+- Each PBX site becomes self-contained and no longer tethered to a desk.
 
 **Negative / costs**
 
 - Three field devices, each with its own power, network and update burden.
 - Parsers coupled to free-text log strings from two codebases we do not control
-  — the proxy firmware and stock Meshtastic (see Open questions).
+  — the PBX firmware and stock Meshtastic (see Open questions).
 - Backhaul now spans a network we do not administer.
 - **The gateway Pi must boot from a USB SSD, not a microSD.** It runs InfluxDB,
   and a time-series database writing continuously is the worst case for SD wear
@@ -134,7 +134,7 @@ Password auth plus per-publisher ACLs must land before the first Pi is installed
 - **A powered USB hub.** Solves the stated problem — two USB ports collapse to
   one — for a fraction of the cost, and solves nothing else. **Rejected because
   power was never the real problem:** without the Pi there are no P1/P2 taps and
-  message-level PDR stays unmeasurable. Still the correct answer if a proxy pair
+  message-level PDR stays unmeasurable. Still the correct answer if a PBX pair
   ever lives permanently at a desk.
 - **Two separate wall chargers.** Cheapest, and leaves the two grounds floating
   relative to each other across a UART link. Classic source of intermittent byte
@@ -150,17 +150,17 @@ Password auth plus per-publisher ACLs must land before the first Pi is installed
 - **Waiting for the proposed frame `seq` (v2) to measure message PDR.**
   **Rejected:** `pkt_id` already exists on both sides and is a better key — it
   also carries timestamp and airtime, and needs no firmware change. See
-  [[proxy-frame-wire-format]].
+  [[pbx-frame-wire-format]].
 - **A Stream API client on the LiLyGO's USB for P2.** **Rejected — not possible:**
-  the firmware permits only one Stream API instance, and the proxy already holds
+  the firmware permits only one Stream API instance, and the PBX already holds
   it over UART1. This killed the original P2 design. The passive console read
   replaces it and is strictly better: it needs no client, cannot contend with the
-  proxy, and yields the TX lifecycle plus cumulative counters.
-- **Asking the proxy firmware for a forward counter (`F3`).** **Cancelled:**
+  PBX, and yields the TX lifecycle plus cumulative counters.
+- **Asking the PBX firmware for a forward counter (`F3`).** **Cancelled:**
   stock Meshtastic already emits `txGood=…,txRelay=…,rxGood=…,rxBad=…` on the
   node console — cumulative, monotonic, self-healing against dropped log lines.
   The denominator needs no firmware change at all.
-- **A 5G HAT per proxy.** **Rejected** — building WiFi covers it. Remains open
+- **A 5G HAT per PBX.** **Rejected** — building WiFi covers it. Remains open
   for the gateway.
 
 ## Open questions
@@ -188,7 +188,7 @@ Non-blocking but shaping:
    "implicit ack" is generated from hearing one's own packet rebroadcast — it
    confirms a hop, not arrival at the gateway.
 4. **Log-format stability, now on two fronts.** The parsers depend on free-text
-   strings from the proxy firmware *and* from stock Meshtastic. The proxy side we
+   strings from the PBX firmware *and* from stock Meshtastic. The PBX side we
    can ask to emit structured lines; the Meshtastic side is upstream and will
    drift across releases — the tree already carries both 2.7.19 and 2.7.26. Pin
    the parser to a firmware version and re-verify on every upgrade.
@@ -200,14 +200,14 @@ Non-blocking but shaping:
    and never the app-level `src_id`.
 6. **Opening the LiLyGO's USB can reset the node.** The standard DTR/RTS
    auto-reset circuit fires when a host opens the port. A reader that reconnects
-   after a hiccup would reboot the proxy node — and every reboot triggers
+   after a hiccup would reboot the PBX node — and every reboot triggers
    `CadencePdrTracker.reanchor()`, so the instrument would be corrupting the
    measurement. DTR assertion must be suppressed.
 7. **Gateway placement biases what it measures.** If the gateway Pi is housed at
-   a proxy site, that proxy's packets arrive at maximum RSSI with zero hops while
+   a PBX site, that the PBX's packets arrive at maximum RSSI with zero hops while
    the other's do not, so `p1` vs `p2` stops measuring the mesh and starts
    measuring gateway placement. Usable if chosen deliberately — the near node
-   becomes a control with RF effectively removed, isolating proxy-chain losses —
+   becomes a control with RF effectively removed, isolating PBX-chain losses —
    but it must be recorded, not discovered later. The prior question, whether the
    gateway still hears the solar nodes from there, cannot be answered from the
    docs: `docs/testbeds/san-joaquin.md` still has placement and distances as
@@ -216,7 +216,7 @@ Non-blocking but shaping:
    app-side; portnum 256 now goes out on channel 1 as intended. The capture in
    `docs/log-parsing.txt` predates the fix and still shows `Ch=0x0`, so tests
    against it pin the old value on purpose; the live check is
-   `SELECT DISTINCT channel FROM proxy_message WHERE portnum='PRIVATE_APP'`.
+   `SELECT DISTINCT channel FROM pbx_message WHERE portnum='PRIVATE_APP'`.
 
 ## Follow-ups
 
@@ -226,27 +226,27 @@ Non-blocking but shaping:
   credential plumbing through the gateway, monitor and Telegraf. **Still to run
   before the next `docker compose up`:** `./mqtt/init-credentials.sh` and paste
   the result into `configuration.env` — until then the broker rejects everyone.
-- ~~Capture `channel`~~ **DONE 2026-08-07** — tag on `proxy_message`, field on
-  `telemetry`; `SELECT DISTINCT channel FROM proxy_message` is the query that
+- ~~Capture `channel`~~ **DONE 2026-08-07** — tag on `pbx_message`, field on
+  `telemetry`; `SELECT DISTINCT channel FROM pbx_message` is the query that
   reports whether the phone-app fix has shipped.
 - ~~`node-logd`~~ **DONE 2026-08-10** — `src/collector/{serial_lines,node_logd}.py`
-  plus a fourth Telegraf block feeding a `proxy_health` measurement. Seven
+  plus a fourth Telegraf block feeding a `pbx_health` measurement. Seven
   anchored patterns, a per-`pkt_id` lifecycle with five outcomes, and 18 tests
   run against `docs/log-parsing.txt` rather than invented lines. Verified end to
-  end against a live broker and InfluxDB: the record reaches `proxy_health` with
+  end against a live broker and InfluxDB: the record reaches `pbx_health` with
   `pkt_id` as a field, and it is the same integer the gateway stores, so the join
   key lines up.
 - **Still missing before a field deployment: the local Mosquitto bridge.**
   `compose.collector.yaml` publishes straight to the gateway's broker, which is
   right for bench work and wrong in the field — every WiFi outage silently eats
   the TX ground truth the collector exists to produce.
-- **`proxy-logd` is now unblocked**: `proxy_id_to_str()` was fixed upstream
-  (big-endian, decimal, no out-of-bounds read), so the proxy log can finally
+- **`pbx-logd` is now unblocked**: `proxy_id_to_str()` was fixed upstream
+  (big-endian, decimal, no out-of-bounds read), so the PBX log can finally
   attribute a loss to a specific handset.
-- Fourth Telegraf block → `proxy_health`; extend [[data-contract-gateway-web]].
+- Fourth Telegraf block → `pbx_health`; extend [[data-contract-gateway-web]].
 - Reconciler service in the gateway compose, with a grace window before charging
   a `pkt_id` as lost, and de-duplication of retransmitted ids.
-- Ask the proxy repo for: the `proxy_id_to_str()` fix, structured `EVT` lines,
+- Ask the PBX repo for: the `proxy_id_to_str()` fix, structured `EVT` lines,
   and a correction to `client-integration.md` §4.1/§4.2, which state
   little-endian where the code and the wire are big-endian.
 - Pi hygiene: correctly sized PSU (Pi 4 → 3 A, Pi 5 → 27 W, or USB current is

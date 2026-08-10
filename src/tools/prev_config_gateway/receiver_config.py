@@ -56,7 +56,7 @@ def main():
     # No position broadcasting: --remove-position clears any fixed position left
     # over from an earlier config, and with gps_mode DISABLED the PositionModule
     # has nothing to send. Smart broadcast is turned off as well so a position
-    # arriving from a phone/proxy can't retrigger transmissions.
+    # arriving from a phone/PBX can't retrigger transmissions.
     DEV_MEAS    = str(node_params.TELEMETRY_DEV_MEAS_ENABLED).lower()
     ENV_MEAS    = str(node_params.TELEMETRY_ENV_MEAS_ENABLED).lower()
     FIXED_POS   = str(node_params.POSITION_FIXED_ENABLED).lower()
