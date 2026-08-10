@@ -54,10 +54,15 @@ for account in "${ACCOUNTS[@]}"; do
 done
 
 # Mosquitto 2.x warns on world-readable credential files and future versions will
-# refuse to load them. Both must be readable by the broker's uid (1883), which is
-# not the host user — hence the root container rather than a plain chmod.
+# refuse to load them. This applies to the password file, which holds hashes and
+# is gitignored. It is deliberately NOT applied to aclfile: that file is topic
+# rules with no secrets, it is committed to the repository, and locking it to
+# 0600 only makes it unreadable to git while protecting nothing.
+#
+# The password file must be readable by the broker's uid (1883), which is not the
+# host user — hence the root container rather than a plain chmod.
 docker run --rm -v "$PWD/mqtt:/x" alpine:3 sh -c \
-    'chown 1883:1883 /x/pwfile /x/aclfile && chmod 0600 /x/pwfile /x/aclfile'
+    'chown 1883:1883 /x/pwfile && chmod 0600 /x/pwfile'
 
 cat <<EOF
 
