@@ -61,7 +61,7 @@ def _query(q: str) -> list[dict]:
 
 def fetch_nodes(days: int) -> list[str]:
     rows = _query(
-        f"SHOW TAG VALUES FROM mqtt_consumer "
+        f"SHOW TAG VALUES FROM telemetry "
         f"WITH KEY = node_label WHERE time > now() - {days}d"
     )
     return sorted({r["value"] for r in rows})
@@ -69,7 +69,7 @@ def fetch_nodes(days: int) -> list[str]:
 
 def fetch_node_data(node_label: str, days: int) -> pd.DataFrame:
     rows = _query(
-        f"SELECT * FROM mqtt_consumer "
+        f"SELECT * FROM telemetry "
         f"WHERE node_label = '{node_label}' AND time > now() - {days}d "
         f"ORDER BY time ASC"
     )

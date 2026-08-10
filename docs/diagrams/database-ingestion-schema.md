@@ -43,7 +43,7 @@ flowchart LR
     end
 
     subgraph db["InfluxDB"]
-        M1[("mqtt_consumer")]
+        M1[("telemetry")]
         M2[("proxy_message")]
         M3[("pdr")]
     end
@@ -79,17 +79,17 @@ Dos cosas que el diagrama hace explícitas:
 - **`_run_sweep` no tiene paquete de entrada.** Es el detector de silencio: sin
   él un nodo muerto congela su último PDR para siempre. Es la única rama que
   nace del reloj y no de la malla.
-- **`monitor/` sólo lee `mqtt_consumer`.** Las otras dos measurements todavía no
+- **`monitor/` sólo lee `telemetry`.** Las otras dos measurements todavía no
   tienen consumidor en el dashboard.
 
 ## El esquema
 
 ```mermaid
 erDiagram
-    mqtt_consumer ||--o{ pdr : "node_label"
-    mqtt_consumer ||--o{ proxy_message : "node_label"
+    telemetry ||--o{ pdr : "node_label"
+    telemetry ||--o{ proxy_message : "node_label"
 
-    mqtt_consumer {
+    telemetry {
         tag node_id
         tag node_label
         tag topic
@@ -151,7 +151,7 @@ es el único tag que las tres comparten y por el que tiene sentido cruzarlas.
 
 ## Las cuatro reglas que sostienen el diseño
 
-**1. `proxy_message` no puede vivir en `mqtt_consumer`.**
+**1. `proxy_message` no puede vivir en `telemetry`.**
 Trae `rssi`/`snr`/`hop` para el mismo `node_id` que la telemetría, pero a
 cadencia dirigida por teléfonos. `monitor/utils.py get_recent()` filtra esos
 gráficos sólo por `node_id`, sin mirar el tópico: compartir measurement

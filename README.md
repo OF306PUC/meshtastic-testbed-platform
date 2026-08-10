@@ -397,15 +397,15 @@ docker exec -it influxdb influx
 ```sql
 USE cpsrtc_meshtastic_telemetry
 SHOW MEASUREMENTS
-SELECT * FROM mqtt_consumer ORDER BY time DESC LIMIT 5
-SELECT * FROM mqtt_consumer WHERE node_id='!7c70da02' ORDER BY time DESC LIMIT 5
+SELECT * FROM telemetry ORDER BY time DESC LIMIT 5
+SELECT * FROM telemetry WHERE node_id='!7c70da02' ORDER BY time DESC LIMIT 5
 ```
 
 `SHOW MEASUREMENTS` must list **three**:
 
 | Measurement | Fed by | Holds |
 |---|---|---|
-| `mqtt_consumer` | `position`, `device`, `environment` | Telemetry + the PDR fields that ride inside it |
+| `telemetry` | `position`, `device`, `environment` | Telemetry + the PDR fields that ride inside it |
 | `proxy_message` | `message` | Proxy frame metadata: `portnum`, `channel`, `src_id`, `dst_id`, `pkt_id`, link quality |
 | `pdr` | `pdr` | Losses inferred while a flow was silent — the only way a fully dead node becomes visible |
 

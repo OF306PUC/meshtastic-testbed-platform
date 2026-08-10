@@ -28,7 +28,7 @@ flowchart LR
 
     USB -->|"devices:"| GWR
     GWR -->|"publica · 1883"| MOSQ
-    MOSQ -->|"3 bloques mqtt_consumer"| TG
+    MOSQ -->|"4 bloques mqtt_consumer"| TG
     TG -->|"escribe"| IDB
     IDB --- VOL
     IDB -->|"histórico"| WEB

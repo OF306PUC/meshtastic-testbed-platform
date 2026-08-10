@@ -227,7 +227,7 @@ Non-blocking but shaping:
   before the next `docker compose up`:** `./mqtt/init-credentials.sh` and paste
   the result into `configuration.env` — until then the broker rejects everyone.
 - ~~Capture `channel`~~ **DONE 2026-08-07** — tag on `proxy_message`, field on
-  `mqtt_consumer`; `SELECT DISTINCT channel FROM proxy_message` is the query that
+  `telemetry`; `SELECT DISTINCT channel FROM proxy_message` is the query that
   reports whether the phone-app fix has shipped.
 - ~~`node-logd`~~ **DONE 2026-08-10** — `src/collector/{serial_lines,node_logd}.py`
   plus a fourth Telegraf block feeding a `proxy_health` measurement. Seven

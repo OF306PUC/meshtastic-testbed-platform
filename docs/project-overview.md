@@ -129,7 +129,7 @@ InfluxDB database: `cpsrtc_meshtastic_telemetry`, across **three measurements**:
 
 | Measurement | Fed by | Tags |
 |---|---|---|
-| `mqtt_consumer` | `position`, `device`, `environment` | `node_id`, `node_label`, `topic` |
+| `telemetry` | `position`, `device`, `environment` | `node_id`, `node_label`, `topic` |
 | `proxy_message` | `message` | `node_id`, `node_label`, `portnum`, `src_id`, `dst_id` |
 | `pdr` | `pdr` | `node_label`, `flow`, `source` |
 

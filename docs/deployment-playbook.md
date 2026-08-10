@@ -49,7 +49,7 @@ En este proyecto el Step 7 ya está en gran parte hecho. Eso cambia dónde está
 InfluxDB 1.x solo permite `GROUP BY` sobre tags y tiempo. Con `hop` como field, esta consulta —la más importante de un testbed de malla— hoy no se puede escribir:
 
 ```sql
-SELECT mean(snr), count(snr) FROM mqtt_consumer GROUP BY node_id, hop
+SELECT mean(snr), count(snr) FROM telemetry GROUP BY node_id, hop
 ```
 
 Cardinalidad de `hop`: 0–3. Costo de promoverlo a tag: nulo.
@@ -98,7 +98,7 @@ En la v1 esto era una estimación sin forma de verificarse. Ya no: **`channel_ut
 
 ```sql
 SELECT mean(channel_util), mean(air_util_tx)
-FROM mqtt_consumer WHERE time > now() - 24h GROUP BY node_label
+FROM telemetry WHERE time > now() - 24h GROUP BY node_label
 ```
 
 Si `channel_util` ronda el 20%, la topología es dominio único y el hop limit está comprando congestión sin comprar alcance. Si está bajo 8%, la cadena es real y el hop limit está bien.
@@ -145,12 +145,12 @@ Fuente única en `src/common/radio_config.py` (junto al resto de la configuraci�
 -- Calidad de enlace: SOLO hop = 0. Con hop > 0 el tag node_id
 -- y las métricas RF describen enlaces distintos (§2.2).
 SELECT mean(snr), percentile(snr, 5), count(snr)
-FROM mqtt_consumer
+FROM telemetry
 WHERE hop = '0' AND run_id = 'run-2026-08-A'
 GROUP BY node_label, time(1h)
 
 -- Topología efectiva: distribución de saltos por nodo
-SELECT count(rssi) FROM mqtt_consumer
+SELECT count(rssi) FROM telemetry
 WHERE run_id = 'run-2026-08-A' GROUP BY node_label, hop
 ```
 
@@ -169,9 +169,9 @@ Poco, y muy específico:
 ### 3.5 Verificación
 
 ```sql
-SELECT * FROM mqtt_consumer ORDER BY time DESC LIMIT 1
-SHOW TAG KEYS FROM mqtt_consumer     -- debe listar hop y run_id
-SHOW FIELD KEYS FROM mqtt_consumer   -- rssi, snr, pkt_id, seq deben estar aquí
+SELECT * FROM telemetry ORDER BY time DESC LIMIT 1
+SHOW TAG KEYS FROM telemetry     -- debe listar hop y run_id
+SHOW FIELD KEYS FROM telemetry   -- rssi, snr, pkt_id, seq deben estar aquí
 ```
 
 ---

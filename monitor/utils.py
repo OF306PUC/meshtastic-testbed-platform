@@ -8,7 +8,7 @@ import param
 
 _NODE_ID_RE = re.compile(r'^![0-9a-f]{8}$')
 
-# Fields stored in the mqtt_consumer measurement
+# Fields stored in the telemetry measurement
 POSITION_FIELDS    = ["latitude", "longitude", "altitude"]
 ENVIRONMENT_FIELDS = ["temperature", "humidity"]
 DEVICE_FIELDS      = ["battery_level", "voltage", "channel_util", "air_util_tx", "uptime_seconds"]
@@ -25,7 +25,7 @@ TOPIC_FIELDS = {
 
 class InfluxDBConnector:
     def __init__(self, host, port, username, password, database,
-                 measurement="mqtt_consumer"):
+                 measurement="telemetry"):
         self.measurement = measurement
         self.database    = database
         print(f"[DB] connecting to {host}:{port} db={database}")
