@@ -281,11 +281,13 @@ def main():
     import argparse
     from pathlib import Path
 
-    # Run either as `python -m collector.node_logd` or directly.
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    # Puts src/ on the path so `pbx.collector...` and `gateway...` resolve when
+    # run directly. parents[2] because this file sits two levels below src/:
+    # src/pbx/collector/node_logd.py.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-    from collector import config as params
-    from collector.serial_lines import ConsoleReader
+    from pbx.collector import config as params
+    from pbx.collector.serial_lines import ConsoleReader
     # Shared broker client. It lives under gateway/ for historical reasons and
     # is not gateway-specific; moving it to common/ would be the tidier fix.
     from gateway.mqtt_connector import MQTTConnector

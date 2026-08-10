@@ -1,8 +1,17 @@
 # ADR-0002 — Raspberry Pi as the PBX-site edge collector
 
-**Status:** Accepted — not implemented. Two preconditions open (see Open questions).
-**Date:** 2026-08-06 · **Revised:** 2026-08-07 (P2 re-scoped, F3 cancelled, three Pis)
+**Status:** Accepted. `node-logd` implemented; see Open questions for what is not.
+**Date:** 2026-08-06 · **Revised:** 2026-08-07 (P2 re-scoped, F3 cancelled, three
+Pis) · **Revised:** 2026-08-10 (the Pi is instrumentation, not infrastructure)
 **Owner:** technical-director
+
+> **Scope correction, 2026-08-10.** This ADR was first written as if the Pi were
+> permanent field infrastructure, and several of its requirements followed from
+> that assumption. It is not. **The Pi is temporary instrumentation**, attached to
+> characterise and validate the platform's performance; the definitive PBX will
+> not include one. Everything below should be read as "for the duration of a
+> measurement campaign", which materially lowers the cost of several items —
+> noted where it applies.
 **Related:** docs/diagrams/data-flow-measurement-points.md;
 docs/diagrams/container-topology.md; docs/architecture/gateway-rpi-5g.md;
 memory [[pbx-frame-wire-format]], [[data-contract-gateway-web]]
@@ -229,23 +238,30 @@ Non-blocking but shaping:
 - ~~Capture `channel`~~ **DONE 2026-08-07** — tag on `pbx_message`, field on
   `telemetry`; `SELECT DISTINCT channel FROM pbx_message` is the query that
   reports whether the phone-app fix has shipped.
-- ~~`node-logd`~~ **DONE 2026-08-10** — `src/collector/{serial_lines,node_logd}.py`
+- ~~`node-logd`~~ **DONE 2026-08-10** — `src/pbx/collector/{serial_lines,node_logd}.py`
   plus a fourth Telegraf block feeding a `pbx_health` measurement. Seven
   anchored patterns, a per-`pkt_id` lifecycle with five outcomes, and 18 tests
   run against `docs/log-parsing.txt` rather than invented lines. Verified end to
   end against a live broker and InfluxDB: the record reaches `pbx_health` with
   `pkt_id` as a field, and it is the same integer the gateway stores, so the join
   key lines up.
-- **Still missing before a field deployment: the local Mosquitto bridge.**
-  `compose.collector.yaml` publishes straight to the gateway's broker, which is
-  right for bench work and wrong in the field — every WiFi outage silently eats
-  the TX ground truth the collector exists to produce.
+- **The local Mosquitto bridge is now optional, not a precondition.** Under the
+  original framing — a permanently installed collector — a WiFi outage silently
+  ate ground truth that could never be recovered. For instrumentation it only
+  puts a gap in one measurement run, which the `lines_seen`/`inflight` counters
+  make visible and which can simply be re-run. Add the bridge only if a campaign
+  has to span a link nobody is watching.
 - **`pbx-logd` is now unblocked**: `proxy_id_to_str()` was fixed upstream
   (big-endian, decimal, no out-of-bounds read), so the PBX log can finally
   attribute a loss to a specific handset.
-- Fourth Telegraf block → `pbx_health`; extend [[data-contract-gateway-web]].
-- Reconciler service in the gateway compose, with a grace window before charging
-  a `pkt_id` as lost, and de-duplication of retransmitted ids.
+- ~~Fourth Telegraf block → `pbx_health`~~ **DONE 2026-08-10.**
+- **Reconsider whether the reconciler needs to be a service at all.** It was
+  specified as one because the Pi was assumed permanent, so the TX↔RX join had to
+  happen continuously. For instrumentation the join is an *analysis-time*
+  operation: export `pbx_health` and `pbx_message` and join them on `pkt_id`
+  offline, which removes the grace window, the clock-synchronisation requirement
+  and a long-lived stateful service in one move. A live service is only worth it
+  if the ratio has to be watched while a campaign is running.
 - Ask the PBX repo for: the `proxy_id_to_str()` fix, structured `EVT` lines,
   and a correction to `client-integration.md` §4.1/§4.2, which state
   little-endian where the code and the wire are big-endian.
