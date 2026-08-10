@@ -1,0 +1,37 @@
+# Proxy-site edge collector (ADR-0002). Runs on the Raspberry Pi AT a proxy
+# site, not on the gateway host — this is a separate deployment from the root
+# docker-compose.yaml and the two are never brought up together.
+#
+#   COLLECTOR_SITE=p1 \
+#   NODE_SERIAL_PORT=/dev/serial/by-id/usb-... \
+#   BROKER_ADDRESS=<gateway host> \
+#   docker compose -f compose.collector.yaml up -d --build
+#
+# The gateway host needs a stable address on the building network for this to
+# keep working across reboots — see ADR-0002 § Open questions.
+
+services:
+  node-logd:
+    build:
+      context: .
+      dockerfile: src/collector/Dockerfile
+    container_name: meshtastic-testbed-node-logd
+    restart: unless-stopped
+    env_file: configuration.env        # MQTT_PASSWORD_P1 / MQTT_PASSWORD_P2
+    environment:
+      - COLLECTOR_SITE=${COLLECTOR_SITE:-p1}
+      - NODE_SERIAL_PORT=${NODE_SERIAL_PORT:?set NODE_SERIAL_PORT to the node console, ideally a /dev/serial/by-id path}
+      - BROKER_ADDRESS=${BROKER_ADDRESS:?set BROKER_ADDRESS to the gateway host}
+      - BROKER_PORT=${BROKER_PORT:-1883}
+    devices:
+      # Passed through under the same path inside and out, so a by-id path works
+      # unchanged in the container.
+      - "${NODE_SERIAL_PORT}:${NODE_SERIAL_PORT}"
+
+# NOT included yet, and deliberately so: the local Mosquitto in bridge mode that
+# ADR-0002 calls for. Publishing straight to the gateway's broker is correct for
+# bench work, where a dropped link just means a gap in a test run. It is NOT
+# correct in the field: WiFi drops, access points roam, buildings have
+# maintenance windows, and without a local queue every outage silently eats the
+# TX ground truth this collector exists to produce. Add the bridge before the
+# first real deployment.

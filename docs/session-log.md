@@ -120,6 +120,82 @@ hiciera el orquestador.
   UART), reconciliador en la Pi, pipeline completo en el borde, y esperar al `seq`
   v2 en vez de usar `pkt_id`.
 
+## 2026-08-10 — `node-logd`: el parser de la consola del nodo (P2)
+**Time:** (aprox)
+**User request:** diseñar y desplegar el parser de logs en la Pi del proxy.
+
+### Actions taken
+- `src/collector/`: `serial_lines.py` (lector con supresión de DTR/RTS y de
+  `hupcl`, reconexión, y tick de inactividad), `node_logd.py` (7 patrones +
+  máquina de estados por `pkt_id` + `main()`), `config.py`, `requirements.txt`
+  (sin `meshtastic`: el colector lee texto, no habla el protocolo), `Dockerfile`.
+- `compose.collector.yaml`: despliegue separado, para la Pi del sitio de proxy.
+- Cuarto bloque de Telegraf → measurement `proxy_health`.
+- `tests/test_node_logd.py`: 18 casos, la mayoría contra `docs/log-parsing.txt`.
+  **100 → 118 tests.**
+
+### Decisions
+- **Lista blanca de 7 patrones, todo lo demás se ignora.** Hay ~85 formas de
+  línea en la captura y van a cambiar entre releases de Meshtastic. Y los
+  patrones van anclados: con líneas truncadas, un patrón laxo hace *media*
+  coincidencia y devuelve basura silenciosa. Mejor perder una línea que inventar
+  un dato. `lines_rejected` se publica como métrica: si el formato deriva, se ve.
+- **Un registro por paquete, no eventos crudos.** El ciclo de vida completo es
+  conocimiento local, así que se ensambla en la Pi. Al reconciliador central le
+  queda sólo el cruce que no es local: este registro contra el RX del gateway.
+- **Cinco desenlaces**, y el que importa es `dropped_before_tx`: el proxy
+  entregó el frame y el nodo nunca lo puso al aire. Separa pérdida del handoff
+  UART de pérdida de radio — distinción imposible desde un solo punto.
+- **`tx_attempts` contando repeticiones del mismo id**, no la línea
+  `Setting next retransmission` (que lleva su id en la línea *siguiente*).
+- Sólo se rastrean paquetes con `PACKET FROM PHONE` propio. La telemetría del
+  propio nodo también transmite, pero tiene cadencia conocida y el gateway ya la
+  mide; contarla acá sería doble reporte. Va a `tx_other`.
+- La expiración corre también en el tick de inactividad, no sólo al llegar
+  líneas: un nodo que se calla justo después de transmitir dejaría el paquete
+  colgado para siempre.
+
+### Outcomes
+- Verificado end-to-end contra broker y base reales: los registros llegan a
+  `proxy_health` con la credencial de `p1`, tags `kind/portnum/channel/outcome`
+  y `pkt_id` como field. **`pkt_id` sale como el mismo entero que guarda el
+  gateway** (435365562 = `0x19F326BA`), así que la llave de cruce coincide —
+  que es el punto de todo el diseño. float64 representa exacto cualquier uint32.
+- El compose falla con mensaje claro si faltan `NODE_SERIAL_PORT` o
+  `BROKER_ADDRESS`, en vez de arrancar y no escuchar nada.
+
+### Correcciones a cosas que había afirmado mal
+- **La captura son 4 logs de 2 dispositivos concatenados**, no un stream. El
+  segundo `Started Tx` de `0x3a5f05e6` está en la sección *receptora*: es otro
+  nodo rebroadcasteando, no un reintento del emisor. Mi evidencia de
+  retransmisiones era un artefacto de leer dos logs como uno. El mecanismo de
+  conteo sobrevive; la evidencia no. Anotado en el docstring de los tests.
+- **La truncación a ~188 caracteres es del copy-paste con mouse** desde el panel
+  del SerialMonitor, no del stream. Y resultó inofensiva: medí por patrón y
+  `PACKET FROM PHONE` (158) nunca se corta, `Lora RX` (188) está completa 12/12,
+  y de las dos que sí se cortan sólo necesito el campo `id=`, que es el primero.
+- **Las líneas vacías contaban como rechazos** — corregido: `lines_rejected`
+  existe para señalar deriva de formato y los blancos ahogaban la señal.
+- **`Use channel N (hash 0x..)` sólo lo emite un nodo receptor**, que necesita
+  resolver el hash para elegir la clave. El colector aprende la tabla sólo del
+  tráfico que su nodo recibe, y un hash desconocido queda desconocido.
+- El test que documentaba `PRIVATE_APP` en canal 0 decía que fallaría cuando
+  arreglaran la app. Falso: corre contra un fixture congelado, así que va a
+  pasar siempre. Reescrito el comentario; el detector real es la consulta a
+  InfluxDB sobre datos vivos.
+
+### Next steps / open questions
+- **Falta el bridge Mosquitto local antes de instalar en terreno.** Hoy publica
+  directo al broker del gateway: correcto en banco, incorrecto en campo, donde
+  cada corte de WiFi se come el ground truth de TX.
+- `ConsoleReader` no está probado contra hardware. La supresión de DTR sólo se
+  valida con una placa real, y es lo que evita rebootear el nodo en cada
+  reconexión.
+- `proxy-logd` desbloqueado por el fix de `proxy_id_to_str` aguas arriba.
+- `PRIVATE_APP` en canal 1: arreglado del lado app (owner).
+
+---
+
 ### Continuación 2026-08-07 — el log del nodo destraba el PDR de mensajería
 - **Constraint del firmware:** el owner confirmó que **no se admiten dos
   instancias del Stream API**. Eso mató el `node-tap` original (un cliente

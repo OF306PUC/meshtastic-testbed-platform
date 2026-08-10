@@ -212,12 +212,11 @@ Non-blocking but shaping:
    gateway still hears the solar nodes from there, cannot be answered from the
    docs: `docs/testbeds/san-joaquin.md` still has placement and distances as
    `_TBD (owner)_`.
-8. **`PRIVATE_APP` currently rides channel 0.** The capture shows portnum 256 on
-   `Ch=0x0` (the telemetry channel) and only portnum 1 on `Ch=0x1`. The intended
-   design is channel 1 for both; the MeshPacket is built by the phone app, so the
-   fix is app-side. Until it lands, message traffic is encrypted with the
-   telemetry channel's PSK. Capturing `channel` in the receiver doubles as the
-   detector for whether the fix has shipped.
+8. ~~**`PRIVATE_APP` rides channel 0.**~~ **Resolved 2026-08-10** — fixed
+   app-side; portnum 256 now goes out on channel 1 as intended. The capture in
+   `docs/log-parsing.txt` predates the fix and still shows `Ch=0x0`, so tests
+   against it pin the old value on purpose; the live check is
+   `SELECT DISTINCT channel FROM proxy_message WHERE portnum='PRIVATE_APP'`.
 
 ## Follow-ups
 
@@ -230,6 +229,20 @@ Non-blocking but shaping:
 - ~~Capture `channel`~~ **DONE 2026-08-07** — tag on `proxy_message`, field on
   `mqtt_consumer`; `SELECT DISTINCT channel FROM proxy_message` is the query that
   reports whether the phone-app fix has shipped.
+- ~~`node-logd`~~ **DONE 2026-08-10** — `src/collector/{serial_lines,node_logd}.py`
+  plus a fourth Telegraf block feeding a `proxy_health` measurement. Seven
+  anchored patterns, a per-`pkt_id` lifecycle with five outcomes, and 18 tests
+  run against `docs/log-parsing.txt` rather than invented lines. Verified end to
+  end against a live broker and InfluxDB: the record reaches `proxy_health` with
+  `pkt_id` as a field, and it is the same integer the gateway stores, so the join
+  key lines up.
+- **Still missing before a field deployment: the local Mosquitto bridge.**
+  `compose.collector.yaml` publishes straight to the gateway's broker, which is
+  right for bench work and wrong in the field — every WiFi outage silently eats
+  the TX ground truth the collector exists to produce.
+- **`proxy-logd` is now unblocked**: `proxy_id_to_str()` was fixed upstream
+  (big-endian, decimal, no out-of-bounds read), so the proxy log can finally
+  attribute a loss to a specific handset.
 - Fourth Telegraf block → `proxy_health`; extend [[data-contract-gateway-web]].
 - Reconciler service in the gateway compose, with a grace window before charging
   a `pkt_id` as lost, and de-duplication of retransmitted ids.
