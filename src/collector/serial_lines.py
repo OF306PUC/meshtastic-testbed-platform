@@ -5,8 +5,19 @@ Shared by node_logd (the LiLyGO's Meshtastic console) and proxy_logd (the
 nRF52840's VCOM). Both are read-only taps: nothing is ever written to the port.
 """
 
+import re
 import time
 import serial
+
+# Both consoles colourise their output: Meshtastic wraps the level and parts of
+# the message in SGR sequences, and Zephyr does the same on the nRF52840. They
+# are invisible in a terminal and invisible again if the text is copied out of
+# one, which is why the reference capture in docs/log-parsing.txt has none —
+# reading the device directly is the only way to see them. Left in place they
+# defeat every anchored pattern in the parsers, since the line no longer starts
+# with the level. Stripping belongs here rather than in a parser: it is a
+# property of reading a terminal, and both readers need it.
+_ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 
 
 class ConsoleReader:
@@ -46,26 +57,35 @@ class ConsoleReader:
         ser.rts       = False
         ser.exclusive = True      # a second reader would steal bytes, not copy them
         ser.open()
-        self._disable_hupcl()
+        self._disable_hupcl(ser)
         print(f"[SERIAL] open {self.port} @ {self.baudrate} (DTR/RTS low)")
         return ser
 
-    def _disable_hupcl(self):
+    @staticmethod
+    def _disable_hupcl(ser):
         """
-        Clears HUPCL so the kernel does not drop DTR when the port is closed,
-        which would reset the board on shutdown. Best-effort: not all platforms
-        or adapters expose it, and failing to clear it is not fatal.
+        Clears HUPCL so the kernel does not drop DTR when the port is closed.
+
+        This is the setting that actually matters on a CH34x-based LiLyGO.
+        Measured against real hardware: opening the port leaves the board alone
+        (uptime kept climbing past three days), but CLOSING it with HUPCL set
+        pulls DTR low, which the auto-reset circuit turns into a reboot. The
+        board then comes up logging `reset_reason=reset` at uptime 0 — and every
+        reboot re-anchors the gateway's cadence PDR estimator, so the collector
+        would be corrupting the very measurement it exists to take.
+
+        Takes the port explicitly: an earlier version read it off the instance,
+        which is still unset while _open() is running, so the call silently did
+        nothing and the board reset on every reconnect.
         """
         try:
             import termios
-            fd = self._ser.fileno() if self._ser else None
-            if fd is None:
-                return
-            attrs = termios.tcgetattr(fd)
+            attrs = termios.tcgetattr(ser.fileno())
             attrs[2] &= ~termios.HUPCL
-            termios.tcsetattr(fd, termios.TCSANOW, attrs)
+            termios.tcsetattr(ser.fileno(), termios.TCSANOW, attrs)
         except Exception as exc:                     # pragma: no cover
-            print(f"[SERIAL] could not clear HUPCL ({exc}); close may reset the board")
+            print(f"[SERIAL] WARNING: could not clear HUPCL ({exc}). "
+                  f"Closing this port will reset the board.")
 
     def close(self):
         if self._ser is not None:
@@ -105,4 +125,5 @@ class ConsoleReader:
                 yield None                      # idle tick
                 continue
 
-            yield raw.decode("utf-8", errors="replace").rstrip("\r\n")
+            text = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+            yield _ANSI.sub("", text)
