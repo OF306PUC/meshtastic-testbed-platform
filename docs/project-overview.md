@@ -303,10 +303,30 @@ meshtastic-testbed-platform/
 - **`configuration.env` still tracked in git** (as of last session). Needs
   `git rm --cached configuration.env` before the next commit — flagged for git-lead.
 
-- **Node-label mismatch (cosmetic).** `monitor/app.py` maps `!7c70da02` → node-1 and
-  `!0b64122b` → node-2, but `mesh_config.json` maps `!0b64122b` → node-1 and `!7c70da02` →
-  node-2. Only affects the map popup label; data is unaffected. Owner should reconcile the
-  two sources before the next release.
+- ~~**Node-label mismatch (cosmetic).**~~ **Resolved 2026-08-10, and it was not
+  cosmetic.** `/api/nodes` did not query the database at all: it returned a
+  hardcoded list whose labels were swapped relative to `mesh_config.json` — the
+  file the gateway reads when it writes the `node_label` tag — so the API
+  contradicted InfluxDB and anyone correlating a chart against the database by
+  label was looking at the wrong node. The same list also carried coordinates
+  ~2 km from anything the nodes had ever reported. It now calls
+  `get_nodes_position()`, so the label has one source.
+
+- **GPS latitude and longitude are frozen and identical across all three nodes.**
+  Surfaced by the fix above, which had been masking it. Across 3,255 position
+  reports the lat/lon is byte-identical for node-1, node-2 and node-3
+  (−33.4757888, −70.5953792; min equals max on every node), while **altitude
+  varies normally** per node (535–679 m). A `fixed_position` would freeze all
+  three values, so the leading hypothesis is Meshtastic's imprecise-location
+  feature: `position_precision` is a per-channel `module_settings` value that
+  quantises lat/lon to a grid and leaves altitude untouched, and three nodes a
+  few hundred metres apart would snap to one cell. The configure scripts set
+  channel name and PSK but never touch it, so the channels carry whatever the
+  firmware defaults to.
+  **To verify:** `meshtastic --port <dev> --info` and read the channel's
+  `moduleSettings.positionPrecision`. Anything below full precision is the cause.
+  Until this is settled, treat position as unusable for anything spatial —
+  including the adjacency matrix the deployment playbook wants to derive.
 
 - **No license.** Project is currently unlicensed. License decision pending.
 

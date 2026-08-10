@@ -51,21 +51,28 @@ def dashboard():
     return render_template("dashboard.html", node_id=node_id)
 
 
-# ── Hardcoded node positions (fixed installations) ────────────────────────────
-# Update these if nodes are physically relocated.
-
-NODES = [
-    {"node_id": "!7c70da02", "node_label": "node-1", "lat": -33.49695, "lon": -70.61025},  
-    {"node_id": "!0b64122b", "node_label": "node-2", "lat": -33.49729, "lon": -70.60736},
-    {"node_id": "!32fe0d4e", "node_label": "node-3", "lat": -33.49783, "lon": -70.61518},
-]
-
 # ── APIs ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/nodes")
 def api_nodes():
-    """Return fixed node positions. No DB query needed — nodes are stationary."""
-    return jsonify(NODES)
+    """
+    Latest reported position per node, from the database.
+
+    This used to return a hardcoded list, on the reasoning that the nodes are
+    stationary so no query was needed. Two things were wrong with that. The
+    coordinates had drifted ~2 km from what the nodes actually report, so the map
+    showed positions no node had ever been at. And the labels in that list were
+    swapped relative to mesh_config.json — which is the file the gateway reads
+    when it writes the node_label tag — so the API contradicted the database, and
+    anyone correlating a chart against InfluxDB by label was looking at the wrong
+    node.
+
+    Reading the tags back means the label has exactly one source: mesh_config.json
+    via the gateway. A node that has not reported GPS yet is simply absent, which
+    map.html already handles ("No nodes with GPS data yet") — it was written for
+    this shape before the hardcoded list replaced it.
+    """
+    return jsonify(db.get_nodes_position())
 
 
 @app.route("/api/recent/<node_id>/<field>")
