@@ -1,0 +1,435 @@
+# Sanitised nRF52840 (PBX) console capture, used as a parser fixture.
+#
+# Derived from a real session: two phones registering, exchanging messages
+# in both directions, then disconnecting. Phone numbers were remapped to
+# synthetic ones CONSISTENTLY, so the fromnum sequences and the ROUTE header
+# ids still line up and remain testable; message content and hexdump bytes
+# are redacted. The raw capture is gitignored under captures/ because it
+# carries real numbers and real message text.
+#
+# ANSI escapes are stripped, matching what ConsoleReader hands the parser.
+# What is NOT here: any congestion event (TX queue full, RX overrun, phone
+# queue full). The session had none, so those patterns remain unverified
+# against observed data.
+[00:05:39.643,585] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:05:39.643,676] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=43
+[00:05:39.643,707] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340
+[00:05:44.325,012] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=28 B
+[00:05:44.325,134] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=44
+[00:05:49.554,962] <dbg> proto_handler: proto_decode_fromradio: packet from=0xbb8106c4 to=0xffffffff portnum=256 payload=14 B
+[00:05:49.555,023] <inf> router: ROUTE DN  hdr=[01][0x29b92701][0x29b92702] content='<redacted>'
+[00:05:49.555,053] <inf> router: ROUTE DN payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:05:49.555,175] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=45
+[00:05:52.483,520] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=256 (passthrough)
+[00:05:52.483,612] <inf> main: ROUTE UP  hdr=[01][0x29b92702][0x29b92701] content='<redacted>'
+[00:05:52.483,612] <inf> main: ROUTE UP payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:05:52.696,563] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:05:52.696,655] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=46
+[00:05:56.082,000] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:05:56.082,214] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=47
+[00:06:05.390,197] <dbg> proto_handler: proto_decode_fromradio: packet from=0xbb8106c4 to=0xffffffff portnum=256 payload=14 B
+[00:06:05.390,258] <inf> router: ROUTE DN  hdr=[01][0x29b92701][0x29b92702] content='<redacted>'
+[00:06:05.390,289] <inf> router: ROUTE DN payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:05.390,380] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=48
+[00:06:07.964,172] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=256 (passthrough)
+[00:06:07.964,263] <inf> main: ROUTE UP  hdr=[01][0x29b92702][0x29b92701] content='<redacted>'
+[00:06:07.964,263] <inf> main: ROUTE UP payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:08.306,854] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:06:08.306,945] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=49
+[00:06:09.642,669] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:06:09.642,791] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=50
+[00:06:09.642,791] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340
+[00:06:11.301,361] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:06:11.301,452] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=51
+[00:06:11.886,138] <dbg> proto_handler: proto_decode_fromradio: packet from=0xbb8106c4 to=0xffffffff portnum=256 payload=15 B
+[00:06:11.886,199] <inf> router: ROUTE DN  hdr=[01][0x29b92701][0x29b92702] content='<redacted>'
+[00:06:11.886,230] <inf> router: ROUTE DN payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:11.886,352] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=52
+[00:06:17.324,005] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=256 (passthrough)
+[00:06:17.324,188] <inf> main: ROUTE UP  hdr=[01][0x29b92702][0x29b92701] content='<redacted>'
+[00:06:17.324,218] <inf> main: ROUTE UP payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:17.526,214] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:06:17.526,306] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=53
+[00:06:20.665,588] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:06:20.665,679] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=54
+[00:06:23.685,150] <dbg> proto_handler: proto_decode_fromradio: packet from=0xbb8106c4 to=0xffffffff portnum=256 payload=15 B
+[00:06:23.685,241] <inf> router: ROUTE DN  hdr=[01][0x29b92701][0x29b92702] content='<redacted>'
+[00:06:23.685,241] <inf> router: ROUTE DN payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:23.685,333] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=55
+[00:06:26.643,829] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=256 (passthrough)
+[00:06:26.643,890] <inf> main: ROUTE UP  hdr=[01][0x29b92702][0x29b92701] content='<redacted>'
+[00:06:26.643,920] <inf> main: ROUTE UP payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:26.824,829] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:06:26.824,920] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=56
+[00:06:28.334,320] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:06:28.334,472] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=57
+[00:06:39.682,128] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:06:39.682,250] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=58
+[00:06:39.682,281] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) �� conn 0x20011340
+[00:06:40.033,691] <dbg> proto_handler: proto_decode_fromradio: packet from=0xbb8106c4 to=0xffffffff portnum=256 payload=15 B
+[00:06:40.033,782] <inf> router: ROUTE DN  hdr=[01][0x29b92701][0x29b92702] content='<redacted>'
+[00:06:40.033,813] <inf> router: ROUTE DN payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:40.033,905] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=59
+[00:06:44.327,453] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=28 B
+[00:06:44.327,575] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=60
+[00:06:44.354,064] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=61 B
+[00:06:44.354,187] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=61
+[00:06:49.763,427] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=256 (passthrough)
+[00:06:49.763,641] <inf> main: ROUTE UP  hdr=[01][0x29b92702][0x29b92701] content='<redacted>'
+[00:06:49.763,671] <inf> main: ROUTE UP payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:49.993,682] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:06:49.993,835] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=62
+[00:06:51.637,268] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:06:51.637,390] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=63
+[00:06:54.614,624] <dbg> proto_handler: proto_decode_fromradio: packet from=0xbb8106c4 to=0xffffffff portnum=256 payload=15 B
+[00:06:54.614,715] <inf> router: ROUTE DN  hdr=[01][0x29b92701][0x29b92702] content='<redacted>'
+[00:06:54.614,715] <inf> router: ROUTE DN payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:06:54.614,837] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=64
+[00:07:02.282,745] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=256 (passthrough)
+[00:07:02.282,836] <inf> main: ROUTE UP  hdr=[01][0x29b92702][0x29b92701] content='<redacted>'
+[00:07:02.282,867] <inf> main: ROUTE UP payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:07:02.514,678] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:07:02.514,770] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=65
+[00:07:03.955,291] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:07:03.955,383] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=66
+[00:07:09.128,204] <dbg> proto_handler: proto_decode_fromradio: packet from=0xbb8106c4 to=0xffffffff portnum=256 payload=15 B
+[00:07:09.128,295] <inf> router: ROUTE DN  hdr=[01][0x29b92701][0x29b92702] content='<redacted>'
+[00:07:09.128,295] <inf> router: ROUTE DN payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:07:09.128,387] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=67
+[00:07:09.641,601] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:07:09.641,662] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=68
+[00:07:09.641,754] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat ��� synth queueStatus (6 B) → conn 0x20011340
+[00:07:13.443,176] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=256 (passthrough)
+[00:07:13.443,237] <inf> main: ROUTE UP  hdr=[01][0x29b92702][0x29b92701] content='<redacted>'
+[00:07:13.443,267] <inf> main: ROUTE UP payload
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:07:13.769,653] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:07:13.769,775] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=69
+[00:07:15.739,440] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:07:15.739,532] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=70
+[00:07:39.641,052] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:07:39.641,204] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=71
+[00:07:39.641,204] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340
+[00:07:44.541,473] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=28 B
+[00:07:44.541,595] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=72
+[00:08:09.680,480] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:08:09.680,633] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=73
+[00:08:09.680,633] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat �� synth queueStatus (6 B) → conn 0x20011340
+[00:08:26.655,426] <inf> ble_gatt: Connected [slot 1] ��� active: 2/6
+[00:08:26.655,456] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:08:27.117,492] <inf> ble_gatt: Disconnected [slot 1] (reason 0x13)
+[00:08:27.117,553] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:08:27.623,168] <inf> ble_gatt: Connected [slot 1] ��� active: 2/6
+[00:08:27.623,199] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:08:29.164,611] <inf> ble_gatt: proxy_id [CL phone]: +56700000001. Register for slot 1
+[00:08:35.499,603] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69420
+[00:08:35.499,633] <inf> main: want_config nonce=69420 from conn 0x200114c0 → replay cached burst
+[00:08:35.499,816] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69420 -> 4 B
+[00:08:35.499,908] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69420) → conn 0x200114c0
+[00:08:39.639,892] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:08:39.639,984] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=74
+[00:08:39.640,045] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340
+[00:08:44.544,342] <inf> ble_gatt: replay drained → conn 0x200114c0 ACTIVE
+[00:08:44.629,028] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:44.629,119] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=75
+[00:08:44.629,241] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=2
+[00:08:44.664,978] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=28 B
+[00:08:44.665,100] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=76
+[00:08:44.665,191] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=3
+[00:08:45.151,977] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:08:45.152,069] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=4
+[00:08:45.152,069] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x200114c0
+[00:08:45.759,460] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69421
+[00:08:45.759,490] <inf> main: want_config nonce=69421 from conn 0x200114c0 → replay cached burst
+[00:08:45.759,765] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69421 -> 4 B
+[00:08:45.759,857] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69421) → conn 0x200114c0
+[00:08:47.784,301] <inf> ble_gatt: replay drained → conn 0x200114c0 ACTIVE
+[00:08:48.730,804] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=6 (passthrough)
+[00:08:49.013,031] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:49.013,153] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=77
+[00:08:49.013,244] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=6
+[00:08:49.325,714] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:08:49.325,805] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=78
+[00:08:49.325,927] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=7
+[00:08:49.473,327] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=6 (passthrough)
+[00:08:49.530,273] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:49.530,364] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=79
+[00:08:49.530,487] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=8
+[00:08:49.895,599] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:49.895,751] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=80
+[00:08:49.895,812] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=9
+[00:08:49.926,666] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=6 payload=93 B
+[00:08:49.926,788] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=81
+[00:08:49.926,879] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=10
+[00:08:50.282,226] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=65 (passthrough)
+[00:08:50.336,944] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:50.337,036] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=82
+[00:08:50.337,158] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=11
+[00:08:51.768,249] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=67 (passthrough)
+[00:08:51.825,042] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:51.825,134] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=83
+[00:08:51.825,256] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=12
+[00:08:52.201,446] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:52.201,538] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=84
+[00:08:52.201,660] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=13
+[00:08:52.239,837] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=67 payload=61 B
+[00:08:52.239,929] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=85
+[00:08:52.240,020] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=14
+[00:08:52.510,894] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=67 (passthrough)
+[00:08:52.550,689] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:08:52.550,781] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=86
+[00:08:52.550,903] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=15
+[00:08:53.116,882] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:08:53.117,034] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=16
+[00:08:53.117,034] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat �� synth queueStatus (6 B) → conn 0x200114c0
+[00:09:09.639,343] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:09:09.639,526] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=87
+[00:09:09.639,526] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat ��� synth queueStatus (6 B) → conn 0x20011340
+[00:09:22.443,847] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:09:22.443,969] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=17
+[00:09:22.444,030] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x200114c0
+[00:09:23.963,806] <dbg> proto_handler: proto_decode_toradio: ToRadio disconnect
+[00:09:23.963,836] <inf> main: ToRadio disconnect from conn 0x200114c0 ��� absorbed (not forwarded)
+[00:09:23.963,836] <inf> ble_gatt: teardown scheduled for slot 1 in 250 ms (phone sent disconnect)
+[00:09:24.214,111] <inf> ble_gatt: teardown: slot 1 link dropped (phone sent disconnect)
+[00:09:24.283,874] <inf> ble_gatt: Disconnected [slot 1] (reason 0x16)
+[00:09:24.283,935] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:09:39.638,763] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:09:39.638,854] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=88
+[00:09:39.638,916] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340
+[00:09:42.180,725] <inf> ble_gatt: Connected [slot 1] — active: 2/6
+[00:09:42.180,755] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:09:43.555,938] <inf> ble_gatt: proxy_id [CL phone]: +56700000001. Register for slot 1
+[00:09:43.799,774] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:09:43.799,865] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=1
+[00:09:43.799,987] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011400
+[00:09:43.897,308] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69420
+[00:09:43.897,308] <inf> main: want_config nonce=69420 from conn 0x20011400 → replay cached burst
+[00:09:43.897,552] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69420 -> 4 B
+[00:09:43.897,674] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69420) → conn 0x20011400
+[00:09:44.820,617] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=28 B
+[00:09:44.820,739] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=89
+[00:09:44.820,861] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=3
+[00:09:46.582,031] <inf> ble_gatt: replay drained → conn 0x20011400 ACTIVE
+[00:10:07.431,915] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:10:07.432,037] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=4
+[00:10:07.432,067] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat �� synth queueStatus (6 B) → conn 0x20011400
+[00:10:09.638,244] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:10:09.638,366] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=90
+[00:10:09.638,397] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat ��� synth queueStatus (6 B) → conn 0x20011340
+[00:10:13.776,763] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69420
+[00:10:13.776,794] <inf> main: want_config nonce=69420 from conn 0x20011400 → replay cached burst
+[00:10:13.777,008] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69420 -> 4 B
+[00:10:13.777,160] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69420) → conn 0x20011400
+[00:10:18.642,883] <inf> ble_gatt: replay drained → conn 0x20011400 ACTIVE
+[00:10:18.883,056] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:10:18.883,178] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=6
+[00:10:18.883,209] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011400
+[00:10:18.883,789] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69421
+[00:10:18.883,819] <inf> main: want_config nonce=69421 from conn 0x20011400 → replay cached burst
+[00:10:18.884,002] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69421 -> 4 B
+[00:10:18.884,094] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69421) ��� conn 0x20011400
+[00:10:19.642,852] <inf> ble_gatt: replay drained → conn 0x20011400 ACTIVE
+[00:10:20.444,335] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=6 (passthrough)
+[00:10:20.617,523] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:10:20.617,614] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=91
+[00:10:20.617,736] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=8
+[00:10:20.932,342] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:10:20.932,434] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=92
+[00:10:20.932,556] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=9
+[00:10:24.723,785] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=6 (passthrough)
+[00:10:24.897,796] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:10:24.897,888] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=93
+[00:10:24.898,010] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=10
+[00:10:25.263,092] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:10:25.263,183] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=94
+[00:10:25.263,305] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=11
+[00:10:25.294,006] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=6 payload=93 B
+[00:10:25.294,158] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=95
+[00:10:25.294,250] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=12
+*** Booting nRF Connect SDK v2.7.0-5cb85570ca43 ***
+*** Using Zephyr OS v3.6.99-100befc70c74 ***
+[00:00:00.000,335] <inf> main: === Meshtastic BLE Proxy starting ===
+[00:00:00.000,549] <inf> bt_sdc_hci_driver: SoftDevice Controller build revision:
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+                                 00 00 00 00 00 00 00 00  00 00 00 00 00 00       |........ .......
+[00:00:00.003,051] <inf> bt_hci_core: HW Platform: Nordic Semiconductor (0x0002)
+[00:00:00.003,082] <inf> bt_hci_core: HW Variant: nRF52x (0x0002)
+[00:00:00.003,112] <inf> bt_hci_core: Firmware: Standard Bluetooth controller (0x00) Version 214.51162 Build 1926957230
+[00:00:00.004,150] <inf> bt_hci_core: Identity: F1:2D:22:11:E4:B7 (random)
+[00:00:00.004,180] <inf> bt_hci_core: HCI: version 5.4 (0x0d) revision 0x11fb, manufacturer 0x0059
+[00:00:00.004,211] <inf> bt_hci_core: LMP: version 5.4 (0x0d) subver 0x11fb
+[00:00:00.004,211] <inf> main: Bluetooth ready
+[00:00:00.005,157] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:00:00.005,218] <inf> uart_meshtastic: UART1 ready — 115200 baud, P1.01 RX / P1.02 TX, TX queue depth 4
+[00:00:00.005,462] <inf> config_cache: cache_begin: arena=4096 B, max_frames=128
+[00:00:00.005,737] <inf> upstream_session: upstream start: want_config nonce=2341846588 sent (6 B), FETCHING
+[00:00:00.449,066] <dbg> proto_handler: proto_decode_fromradio: variant=3 (config/meta)
+[00:00:00.455,139] <dbg> proto_handler: proto_decode_fromradio: variant=17 (config/meta)
+[00:00:00.472,808] <dbg> proto_handler: proto_decode_fromradio: variant=4 (config/meta)
+[00:00:00.482,635] <dbg> proto_handler: proto_decode_fromradio: variant=13 (config/meta)
+[00:00:00.497,222] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.497,741] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.498,107] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.498,474] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.498,779] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.499,145] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.499,511] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.502,197] <dbg> proto_handler: proto_decode_fromradio: variant=10 (config/meta)
+[00:00:00.508,209] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.515,167] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.521,545] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.529,296] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.535,217] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.542,602] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.548,889] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.560,668] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.566,772] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.567,230] <dbg> proto_handler: proto_decode_fromradio: variant=5 (config/meta)
+[00:00:00.577,819] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.584,442] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.590,728] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.596,710] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.602,691] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.609,130] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.615,539] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.621,063] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.627,471] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.633,453] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.650,634] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.657,409] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.663,360] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.668,884] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.674,438] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.679,992] <dbg> proto_handler: proto_decode_fromradio: variant=9 (config/meta)
+[00:00:00.701,477] <dbg> proto_handler: proto_decode_fromradio: variant=4 (config/meta)
+[00:00:00.724,975] <dbg> proto_handler: proto_decode_fromradio: variant=4 (config/meta)
+[00:00:00.725,860] <dbg> proto_handler: proto_decode_fromradio: variant=4 (config/meta)
+[00:00:00.743,377] <dbg> proto_handler: proto_decode_fromradio: variant=4 (config/meta)
+[00:00:00.744,445] <dbg> proto_handler: proto_decode_fromradio: variant=4 (config/meta)
+[00:00:00.762,145] <dbg> proto_handler: proto_decode_fromradio: variant=15 (config/meta)
+[00:00:00.775,390] <dbg> proto_handler: proto_decode_fromradio: variant=15 (config/meta)
+[00:00:00.798,461] <dbg> proto_handler: proto_decode_fromradio: variant=15 (config/meta)
+[00:00:00.811,340] <dbg> proto_handler: proto_decode_fromradio: variant=15 (config/meta)
+[00:00:00.824,584] <dbg> proto_handler: proto_decode_fromradio: variant=15 (config/meta)
+[00:00:00.838,256] <dbg> proto_handler: proto_decode_fromradio: variant=15 (config/meta)
+[00:00:00.850,616] <dbg> proto_handler: proto_decode_fromradio: variant=15 (config/meta)
+[00:00:00.872,314] <dbg> proto_handler: proto_decode_fromradio: variant=7 (config/meta)
+[00:00:00.872,528] <inf> config_cache: cache_mark_ready: 50 frames, 1468 B published
+[00:00:00.872,528] <inf> upstream_session: === Phase 0 config-burst measurement ===
+[00:00:00.872,528] <inf> upstream_session:   my_info:        23 B
+[00:00:00.872,528] <inf> upstream_session:   deviceuiConfig: 8 B
+[00:00:00.872,558] <inf> upstream_session:   node_info:      6 frames, 729 B
+[00:00:00.872,558] <inf> upstream_session:   metadata:       36 B
+[00:00:00.872,558] <inf> upstream_session:   channel:        8 frames, 146 B
+[00:00:00.872,589] <inf> upstream_session:   config:         10 frames, 202 B
+[00:00:00.872,589] <inf> upstream_session:   moduleConfig:   16 frames, 142 B
+[00:00:00.872,589] <inf> upstream_session:   fileInfo:       7 frames, 182 B
+[00:00:00.872,589] <inf> upstream_session:   queueStatus:    0 frames, 0 B
+[00:00:00.872,619] <inf> upstream_session:   other:          1 frames, 6 B
+[00:00:00.872,619] <inf> upstream_session:   config_complete_id: 2341846588
+[00:00:00.872,619] <inf> upstream_session:   TOTAL: 1474 B
+[00:00:00.872,650] <inf> upstream_session: upstream: config_complete nonce=2341846588 ��� CACHE_READY → LIVE
+[00:00:00.942,840] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=28 B
+[00:00:11.018,463] <inf> ble_gatt: Connected [slot 0] — active: 1/6
+[00:00:11.018,493] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:00:11.550,811] <inf> ble_gatt: Connected [slot 1] — active: 2/6
+[00:00:11.550,842] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:00:11.998,535] <dbg> ble_gatt: fromnum_ccc_changed: FROMNUM CCC: notify enabled
+[00:00:12.096,008] <dbg> ble_gatt: logradio_ccc_changed: LOGRADIO CCC: notify enabled
+[00:00:12.437,255] <inf> ble_gatt: proxy_id [CL phone]: +56700000002. Register for slot 0
+[00:00:12.681,060] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:00:12.681,335] <dbg> proto_handler: proto_encode_queue_status: queueStatus encoded -> 6 B
+[00:00:12.681,488] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=1
+[00:00:12.681,488] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) ��� conn 0x20011340
+[00:00:12.682,220] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69420
+[00:00:12.682,220] <inf> main: want_config nonce=69420 from conn 0x20011340 → replay cached burst
+[00:00:12.682,373] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69420 -> 4 B
+[00:00:12.682,495] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69420) → conn 0x20011340
+[00:00:14.466,369] <inf> ble_gatt: Disconnected [slot 1] (reason 0x13)
+[00:00:14.466,430] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:00:15.234,619] <inf> ble_gatt: replay drained → conn 0x20011340 ACTIVE
+[00:00:15.729,797] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:00:15.730,010] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=3
+[00:00:15.730,010] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat �� synth queueStatus (6 B) → conn 0x20011340
+[00:00:15.759,826] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69421
+[00:00:15.759,826] <inf> main: want_config nonce=69421 from conn 0x20011340 → replay cached burst
+[00:00:15.760,162] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69421 -> 4 B
+[00:00:15.760,223] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69421) → conn 0x20011340
+[00:00:16.104,705] <inf> ble_gatt: replay drained → conn 0x20011340 ACTIVE
+[00:00:17.448,699] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=6 (passthrough)
+[00:00:17.583,679] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=6 (passthrough)
+[00:00:17.771,759] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:00:17.771,850] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=5
+[00:00:17.778,594] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:00:17.778,686] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=6
+[00:00:18.427,581] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:00:18.427,673] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=7
+[00:00:18.460,662] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=5 payload=2 B
+[00:00:18.460,754] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=8
+[00:00:18.491,241] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=6 payload=93 B
+[00:00:18.491,333] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=9
+[00:00:19.338,134] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=65 (passthrough)
+[00:00:19.393,035] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:00:19.393,127] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=10
+[00:00:19.941,284] <inf> ble_gatt: Connected [slot 1] — active: 2/6
+[00:00:19.941,345] <inf> ble_gatt: Advertising as 'Meshtastic_0306'
+[00:00:21.339,630] <inf> ble_gatt: proxy_id [CL phone]: +56700000001. Register for slot 1
+[00:00:21.485,961] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:00:21.486,053] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=1
+[00:00:21.486,083] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) ��� conn 0x200114c0
+[00:00:21.680,999] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69420
+[00:00:21.680,999] <inf> main: want_config nonce=69420 from conn 0x200114c0 → replay cached burst
+[00:00:21.681,274] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69420 -> 4 B
+[00:00:21.681,365] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69420) → conn 0x200114c0
+[00:00:22.443,603] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=67 (passthrough)
+[00:00:22.675,567] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:00:22.675,659] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=11
+[00:00:22.675,781] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=3
+[00:00:23.052,398] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:00:23.052,520] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=12
+[00:00:23.052,703] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=4
+[00:00:23.090,332] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0x6c743130 portnum=67 payload=56 B
+[00:00:23.090,484] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=13
+[00:00:23.090,576] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=5
+[00:00:23.523,620] <dbg> proto_handler: proto_decode_toradio: ToRadio variant=1, portnum=67 (passthrough)
+[00:00:23.564,178] <dbg> proto_handler: proto_decode_fromradio: variant=11 (config/meta)
+[00:00:23.564,300] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=14
+[00:00:23.564,392] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=6
+[00:00:24.418,365] <inf> ble_gatt: replay drained → conn 0x200114c0 ACTIVE
+[00:00:26.019,744] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:00:26.019,866] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=15
+[00:00:26.019,897] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340
+[00:00:43.468,139] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:00:43.468,261] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=7
+[00:00:43.468,261] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x200114c0
+[00:00:51.567,962] <dbg> proto_handler: proto_decode_toradio: ToRadio want_config_id=69420
+[00:00:51.567,993] <inf> main: want_config nonce=69420 from conn 0x200114c0 → replay cached burst
+[00:00:51.568,176] <dbg> proto_handler: proto_encode_config_complete: config_complete encoded nonce=69420 -> 4 B
+[00:00:51.568,328] <inf> ble_gatt: replay armed: 50 cache frames + config_complete (nonce=69420) ��� conn 0x200114c0
+[00:00:55.619,171] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:00:55.619,415] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=16
+[00:00:55.619,415] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340
+[00:00:56.504,089] <inf> ble_gatt: replay drained → conn 0x200114c0 ACTIVE
+[00:01:01.084,106] <dbg> proto_handler: proto_decode_fromradio: packet from=0x6c743130 to=0xffffffff portnum=67 payload=28 B
+[00:01:01.084,228] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=17
+[00:01:01.084,350] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=9
+[00:01:13.463,897] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:01:13.464,019] <inf> ble_gatt: FROMNUM notification to=+56700000001 fromnum=10
+[00:01:13.464,050] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x200114c0
+[00:01:25.618,621] <dbg> proto_handler: proto_decode_toradio: ToRadio heartbeat
+[00:01:25.618,713] <inf> ble_gatt: FROMNUM notification to=+56700000002 fromnum=18
+[00:01:25.618,774] <dbg> ble_gatt: ble_gatt_reply_queuestatus: heartbeat → synth queueStatus (6 B) → conn 0x20011340

@@ -120,6 +120,111 @@ hiciera el orquestador.
   UART), reconciliador en la Pi, pipeline completo en el borde, y esperar al `seq`
   v2 en vez de usar `pkt_id`.
 
+## 2026-08-11 — `pbx-logd` (P1), plotter por campo, y posiciones relevadas
+**Time:** (aprox)
+**User request:** el plotter tenía que poder extraer datos (p.ej. el RSSI de
+todos) y graficar 3-4 días; después, diseñar y escribir el logger de la nordic
+contra una captura real. Owner delegó el cierre ("full libertad").
+
+### `pbx-logd` — el colector del nRF52840
+- `src/pbx/collector/pbx_logd.py` + segundo servicio en el compose + 23 tests.
+  **127 → 150 tests.** Verificado end-to-end: publica con la credencial de `p1`,
+  aterriza en `pbx_health`, y la consulta que importa responde
+  (`delivered/missed/gaps` agrupado por `phone`).
+- `tests/fixtures/pbx-console.txt`: la captura real **saneada y trackeada** —
+  teléfonos remapeados de forma **consistente** para que las secuencias `fromnum`
+  y los ids del header ROUTE sigan cruzándose, contenido y hexdumps redactados.
+  La cruda quedó en `captures/`, gitignoreada: tenía dos números reales y el
+  texto de los mensajes.
+
+### Lo que la captura enseñó y el C no podía
+- **El stream corrompe caracteres multibyte.** 43 caracteres de reemplazo contra
+  69 intactos, y la misma línea en tres formas mangleadas. El firmware usa `→` y
+  `—` con soltura, así que **ningún patrón puede anclarse en no-ASCII** — uno con
+  `→` pierde un quinto de sus coincidencias en silencio. Es la restricción de
+  diseño central de este parser y sólo era visible en datos.
+- **`fromnum` es el contador que creía que faltaba.** `FROMNUM notification
+  to=+NN fromnum=N` es una secuencia de entrega **por teléfono** que el firmware
+  ya mantiene: +1 consecutivo, +2 un hueco, y un descenso es **reinicio de
+  sesión, no pérdida**. Da medición por handset sin tocar firmware — por eso el
+  módulo `pbx_stats` que había escrito quedó sin enganchar.
+- **Los banners de arranque de Zephyr no tienen prefijo de log**, y no son ruido:
+  son el marcador de reboot más fiable que existe, porque detectarlo por uptime
+  descendente exige haber visto una línea del arranque anterior.
+- **Las filas de hexdump tampoco tienen prefijo** — se saltean sin contarse como
+  rechazo, o `lines_rejected` deja de servir como alarma de deriva.
+
+### Bugs que encontró el fixture
+1. **Capturaba el código de país como parte del id.** El firmware escribe `+56`
+   literal en el format string, así que el patrón devolvía `56700000001` en vez
+   de `700000001` — y eso **nunca habría empatado con los ids del header ROUTE**.
+   Hay un test que cruza las dos representaciones y falla si divergen.
+2. Los banners se rechazaban (ver arriba).
+3. **Esquema de contadores inestable**: `Counter` sólo materializa claves
+   tocadas, así que `tx_dropped` no existía hasta dispararse. Ahora se publican
+   los 26 siempre — un `0` dice "busqué y no encontré".
+4. Dos banners por arranque se colapsan en un solo reset.
+
+### Corrección a ADR-0002: **P1 nunca estuvo bloqueado**
+`proxy_id_to_str()` es **código muerto** — nada en el firmware la llama. Así que
+mi razonamiento de "los src/dst del log VCOM son basura", que usé como el bloqueo
+de P1, era falso en la práctica. La identidad del handset siempre vino de tres
+otras líneas que leen el id con `sys_get_be32()` directo y estuvieron correctas
+desde el principio.
+
+### Firmware: escrito y revertido
+Se escribió `pbx_stats` (19 contadores acumulados + volcado periódico) e se
+instrumentaron 19 call sites en `../meshpbx`. **El owner aclaró que no quería que
+tocara el firmware**, así que se revirtieron los 7 archivos trackeados y quedó
+sólo el módulo nuevo, sin enganchar (`src/pbx_stats.{h,c}` +
+`tests/pbx_stats_test.c`, 9 tests de host pasando). El mapa de call sites quedó
+documentado por si se retoma. Y con `fromnum` disponible, ya no es necesario.
+
+### `plot_history.py` — extracción y comparación entre nodos
+- `--fields rssi [snr hop]` → una figura por campo con **todos los nodos
+  superpuestos**; `--export FILE.csv` → los datos, con `node_id` junto a
+  `node_label` porque los dos ya se contradijeron una vez.
+- **Bug que lo bloqueaba:** `_query()` leía `results[0]["series"][0]` — sólo la
+  primera serie. Cualquier `GROUP BY` devolvía node-1 y descartaba el resto en
+  silencio. Por eso el tool consultaba nodo por nodo: no era diseño, era límite.
+- **Las líneas se cortan en los huecos.** El primer render trazó una recta a
+  través de un corte de 14 h, afirmando una tendencia donde no llegó nada. El
+  umbral se adapta a la cadencia de cada serie (120 s vs 600 s).
+- Un campo por consulta y unidos después: un `SELECT a,b,c` nulea los campos
+  ausentes y en un CSV esos nulos son indistinguibles de "el nodo no lo reporta".
+- Verificado: 57.489 filas, tres nodos, campos de cada tópico en su columna.
+
+### Posiciones relevadas — reencuadre del owner
+Se implementó `position` en `mesh_config.json` escribiéndose a la radio como
+`fixed_position`; **el owner corrigió: es registro, no configuración.** Y su
+razón es mejor que la mía: provisionarla hace que el nodo reporte el relevamiento
+en vez de su propio fix, y **relevamiento menos GPS es el error del GPS**, que en
+un testbed es un resultado. Revertida la escritura a la radio; el monitor lo lee
+y `/api/nodes` devuelve `source: surveyed|gps` con `gps_lat/gps_lon` al lado.
+Como ya nada lo provisiona, el dashboard es su único consumidor y por lo tanto el
+único lugar donde su validación corre — así que importa `common.mesh_config` en
+vez de parsear el JSON aparte.
+
+### Y un hallazgo del monitor
+`/api/nodes` **no consultaba la base**: devolvía una lista hardcodeada con
+coordenadas a ~2 km de lo real y los labels cruzados respecto de
+`mesh_config.json`. La API contradecía a InfluxDB. Al arreglarlo apareció lo que
+la lista tapaba: **lat/lon idénticas en 3.255 reportes de los tres nodos** con la
+altitud variando normal — firma de `position_precision` cuantizando. Registrado
+en Known constraints; la posición no sirve para nada espacial hasta verificarlo.
+
+### Next steps / open questions
+- **Ninguna captura tiene congestión todavía.** Los seis patrones de pérdida de
+  `pbx_logd` están escritos contra los format strings del C. Un cero en
+  producción significa "no verificado", no "sin pérdidas". Hay un test que falla
+  el día que una captura con congestión reemplace el fixture.
+- Falta el reconciliador TX↔RX — y con la Pi como instrumentación, probablemente
+  deba ser análisis offline y no un servicio.
+- `position_precision` sin verificar (`meshtastic --info`).
+- La Pi del gateway: ¿temporal también, o host permanente del pipeline?
+
+---
+
 ## 2026-08-10 — Rename a meshpbx + `telemetry`, y prueba con hardware real
 **Time:** (aprox)
 **User request:** probar el colector contra hardware, y renombrar todo lo que

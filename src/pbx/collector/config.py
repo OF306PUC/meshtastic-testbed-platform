@@ -11,6 +11,17 @@ SITE = os.getenv("COLLECTOR_SITE", "p1")
 NODE_SERIAL_PORT = os.getenv("NODE_SERIAL_PORT", "")
 NODE_BAUDRATE    = int(os.getenv("NODE_BAUDRATE", "115200"))
 
+# Zephyr console of the nRF52840 (the PBX itself), reached over the J-Link VCOM.
+# A different device from NODE_SERIAL_PORT and a different log format entirely,
+# which is why the two collectors are separate processes.
+PBX_SERIAL_PORT  = os.getenv("PBX_SERIAL_PORT", "")
+
+# Seconds between cumulative counter dumps from pbx_logd. Matched to the
+# gateway's PDR sweep interval so both sides of a measurement land on the same
+# grid. Unlike the Meshtastic node, the PBX firmware keeps no running totals of
+# its own, so this cadence is also the resolution of every loss figure it yields.
+PBX_COUNTERS_EVERY_SEC = float(os.getenv("PBX_COUNTERS_EVERY_SEC", "30"))
+
 BROKER_ADDRESS = os.getenv("BROKER_ADDRESS", "localhost")
 BROKER_PORT    = int(os.getenv("BROKER_PORT", "1883"))
 CLIENT_ID      = os.getenv("CLIENT_ID", f"meshtastic-testbed-collector-{SITE}")

@@ -1,8 +1,10 @@
 # ADR-0002 — Raspberry Pi as the PBX-site edge collector
 
-**Status:** Accepted. `node-logd` implemented; see Open questions for what is not.
+**Status:** Accepted. `node-logd` and `pbx-logd` implemented; see Open questions
+for what is not.
 **Date:** 2026-08-06 · **Revised:** 2026-08-07 (P2 re-scoped, F3 cancelled, three
 Pis) · **Revised:** 2026-08-10 (the Pi is instrumentation, not infrastructure)
+· **Revised:** 2026-08-11 (pbx-logd built; P1 was never blocked)
 **Owner:** technical-director
 
 > **Scope correction, 2026-08-10.** This ADR was first written as if the Pi were
@@ -201,6 +203,17 @@ Non-blocking but shaping:
    can ask to emit structured lines; the Meshtastic side is upstream and will
    drift across releases — the tree already carries both 2.7.19 and 2.7.26. Pin
    the parser to a firmware version and re-verify on every upgrade.
+   **Measured 2026-08-11:** the serial stream corrupts multi-byte characters. One
+   capture held 43 replacement characters against 69 intact ones, and the same
+   line appeared in three mangled forms. Both parsers therefore anchor on ASCII
+   only — the firmware writes `→` and `—` freely, and a pattern containing one
+   loses about a fifth of its matches silently.
+9. **No congestion has ever been captured.** Every loss pattern in `pbx_logd`
+   (TX queue full, RX overrun, phone queue full) is written against the
+   firmware's format strings, because no captured session has contained one. A
+   zero count for those in production means "unverified", not "no losses". A test
+   asserts they stay zero against the fixture, so it fails the day a capture with
+   congestion replaces it — at which point they become observed.
 5. **P1's ids are garbage until fixed upstream.** `proxy_id_to_str()` reads 16
    bytes from a 4-byte array, so the `src`/`dst` the firmware prints are
    out-of-bounds reads. This does **not** block the health counters, nor the
@@ -251,9 +264,19 @@ Non-blocking but shaping:
   puts a gap in one measurement run, which the `lines_seen`/`inflight` counters
   make visible and which can simply be re-run. Add the bridge only if a campaign
   has to span a link nobody is watching.
-- **`pbx-logd` is now unblocked**: `proxy_id_to_str()` was fixed upstream
-  (big-endian, decimal, no out-of-bounds read), so the PBX log can finally
-  attribute a loss to a specific handset.
+- ~~`pbx-logd` is now unblocked~~ **DONE 2026-08-11.** `src/pbx/collector/pbx_logd.py`
+  plus a second compose service, 23 tests against a sanitised real session.
+  **Correction to what this ADR previously claimed:** P1 was never actually
+  blocked. `proxy_id_to_str()` is dead code — nothing in the firmware calls it —
+  so the "the VCOM log's src/dst are garbage" reasoning was wrong in practice.
+  The handset identity always came from three other lines that read the id with
+  `sys_get_be32()` directly and were correct throughout.
+- **`fromnum` turned out to be the counter this ADR assumed was missing.**
+  `FROMNUM notification to=+NN fromnum=N` is a per-phone delivery sequence the
+  firmware already maintains: +1 is consecutive, +2 is a gap, and a decrease is a
+  session restart rather than a loss. It gives per-handset delivery measurement
+  with no firmware change, which is why the pbx_stats module drafted for that
+  purpose was left unwired.
 - ~~Fourth Telegraf block → `pbx_health`~~ **DONE 2026-08-10.**
 - **Reconsider whether the reconciler needs to be a service at all.** It was
   specified as one because the Pi was assumed permanent, so the TX↔RX join had to

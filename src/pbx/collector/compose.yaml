@@ -6,9 +6,14 @@
 #
 #   cd src/pbx/collector
 #   COLLECTOR_SITE=p1 \
-#   NODE_SERIAL_PORT=/dev/serial/by-id/usb-... \
+#   NODE_SERIAL_PORT=/dev/serial/by-id/usb-1a86_...      # LiLyGO  (P2)
+#   PBX_SERIAL_PORT=/dev/serial/by-id/usb-SEGGER_...     # nRF52840 (P1)
 #   BROKER_ADDRESS=<gateway host> \
 #   docker compose up -d --build
+#
+# The two ports are easy to swap and the failure is quiet: point node-logd at the
+# nRF52840 and every line is rejected, since the two consoles share no grammar.
+# Watch lines_rejected on the first counter dump.
 #
 # Relative paths below resolve against THIS directory, not the repo root, which
 # is why context and env_file climb three levels. The Dockerfile path is relative
@@ -42,6 +47,25 @@ services:
       # Passed through under the same path inside and out, so a by-id path works
       # unchanged in the container.
       - "${NODE_SERIAL_PORT}:${NODE_SERIAL_PORT}"
+
+  # Measurement point P1: the nRF52840's own console. A separate service, not a
+  # second thread, because the two ports fail independently and each detects a
+  # restart from its own log — a shared process would take both down together.
+  pbx-logd:
+    build:
+      context: ../../..
+      dockerfile: src/pbx/collector/Dockerfile
+    command: ["python", "src/pbx/collector/pbx_logd.py"]
+    container_name: meshtastic-testbed-pbx-logd
+    restart: unless-stopped
+    env_file: ../../../configuration.env
+    environment:
+      - COLLECTOR_SITE=${COLLECTOR_SITE:-p1}
+      - PBX_SERIAL_PORT=${PBX_SERIAL_PORT:?set PBX_SERIAL_PORT to the nRF52840 J-Link VCOM, ideally a /dev/serial/by-id path}
+      - BROKER_ADDRESS=${BROKER_ADDRESS:?set BROKER_ADDRESS to the gateway host}
+      - BROKER_PORT=${BROKER_PORT:-1883}
+    devices:
+      - "${PBX_SERIAL_PORT}:${PBX_SERIAL_PORT}"
 
 # No local Mosquitto bridge, and that is now a deliberate omission rather than a
 # gap: the collector is temporary instrumentation, not installed infrastructure
