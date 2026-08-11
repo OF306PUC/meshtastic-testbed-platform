@@ -39,7 +39,11 @@ testbed to wherever that machine lives and to campus wired/Wi-Fi networking. A
 [MQTT broker + Telegraf + InfluxDB + monitor/]
 ```
 
-**Decided 2026-08-07:** the **full pipeline runs on the Pi** — Mosquitto,
+**Decided 2026-08-07, confirmed permanent 2026-08-11:** the gateway *is* a
+Raspberry Pi and stays one — unlike the two PBX-site collectors, which are
+temporary instrumentation ([`ADR-0002`](./ADR-0002-pbx-site-edge-collector.md)).
+Nothing about this host is campaign-scoped, so the requirements below are
+standing ones. The **full pipeline runs on the Pi** — Mosquitto,
 Telegraf, InfluxDB and `monitor/`. The gateway Pi is therefore the centre of
 gravity of the system, and the three collectors defined in
 [`ADR-0002`](./ADR-0002-pbx-site-edge-collector.md) publish to it. Two

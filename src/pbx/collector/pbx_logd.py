@@ -113,10 +113,19 @@ _ROUTE = re.compile(
     r"^ROUTE (?P<dir>UP|DN)\s+hdr=\[(?P<ver>[0-9a-f]+)\]"
     r"\[0x(?P<src>[0-9a-f]+)\]\[0x(?P<dst>[0-9a-f]+)\]")
 
-# Loss and fault lines. NOT PRESENT in the reference capture — the session that
-# produced it had no congestion — so these are written against the firmware's
-# format strings and are the one part of this parser that observed data has not
-# confirmed. Treat a zero count here as "unverified", not as "no losses".
+# Loss and fault lines. NOT PRESENT in any capture, and there will not be one:
+# the testbed does not reach congestion on demand. These are therefore the one
+# part of this parser that observed data can never confirm, so
+#
+#     a zero count here means "never matched", which is indistinguishable
+#     from "never happened".
+#
+# Any analysis leaning on these being zero is leaning on a transcription. The
+# narrow risk that remains — a format string typed wrong, so the pattern would
+# not fire even during real congestion — is closed by
+# tests/test_pbx_logd.py::TestLossPatternsAgainstFirmwareSource, which extracts
+# the LOG_WRN strings from ../meshpbx/src, renders them and feeds them here. That
+# catches a reworded message; it cannot catch one the firmware never emits.
 _TX_DROP      = re.compile(r"^TX queue full")
 _RX_OVERRUN   = re.compile(r"^RX overrun: (?P<bytes>\d+) byte")
 _RX_RESYNC    = re.compile(r"(?:Bad frame length .* resyncing|RX frame stalled mid-frame)")

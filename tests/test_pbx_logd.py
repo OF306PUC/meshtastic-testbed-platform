@@ -247,6 +247,98 @@ class TestLossPaths(unittest.TestCase):
         self.assertTrue(self.out.events("slots_exhausted"))
 
 
+class TestLossPatternsAgainstFirmwareSource(unittest.TestCase):
+    """
+    Checks the loss patterns against the firmware's own format strings.
+
+    A congestion capture is not going to exist — the testbed does not reach those
+    conditions on demand — so these patterns can never be confirmed against
+    observed output. That leaves one narrow risk worth closing: a format string
+    transcribed wrong, giving a pattern that would never fire even during real
+    congestion, and a permanent zero indistinguishable from "no losses".
+
+    So instead of asserting against lines typed from memory, this reads the
+    LOG_WRN strings out of ../meshpbx/src, renders them with sample arguments and
+    feeds the result to the parser. It catches a reworded message. It cannot catch
+    a message the firmware never emits, which stays an accepted caveat.
+
+    Skipped when the firmware repo is not checked out alongside, since it is a
+    sibling repository and not a dependency.
+    """
+
+    FIRMWARE = Path(__file__).resolve().parents[2] / "meshpbx" / "src"
+
+    # message fragment the firmware must still contain -> counter it feeds
+    EXPECTED = {
+        "TX queue full":            "tx_dropped",
+        "RX overrun":               "rx_overrun_bytes",
+        "FromRadio queue full":     "phone_queue_dropped",
+        "PROXY_PORTNUM: bad header": "broadcast_fallback",
+        "resyncing":                "rx_resync",
+        "node rebooted":            "node_reboots",
+        "session presumed dead":    "session_refetch",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        if not cls.FIRMWARE.is_dir():
+            raise unittest.SkipTest(f"firmware not checked out at {cls.FIRMWARE}")
+        cls.sources = "\n".join(
+            p.read_text(errors="replace") for p in cls.FIRMWARE.glob("*.c"))
+
+    def test_every_pattern_still_matches_a_string_in_the_firmware(self):
+        """
+        A pattern whose message no longer exists in the source is dead: it will
+        never fire, and its counter will read zero forever while looking healthy.
+        """
+        for fragment, counter in self.EXPECTED.items():
+            with self.subTest(counter=counter):
+                self.assertIn(fragment, self.sources,
+                              f"'{fragment}' is gone from the firmware — the "
+                              f"'{counter}' counter is now dead code")
+
+    def test_rendered_firmware_lines_reach_their_counters(self):
+        """
+        Takes each LOG_WRN/LOG_ERR format string that carries one of the tracked
+        fragments, substitutes printf specifiers with sample values, wraps it in a
+        Zephyr prefix and checks the counter moves. This is the closest thing to
+        observed data that is available.
+        """
+        import re as _re
+        fmt_re = _re.compile(r'LOG_(?:WRN|ERR|INF)\("((?:[^"\\]|\\.)*)"')
+        spec_re = _re.compile(r"%[-+ #0-9.]*(?:\"\s*PRI[a-z]\d*\s*\")?[hlLzjt]*[diouxXeEfgGcsp]")
+
+        rendered = 0
+        for raw in fmt_re.findall(self.sources):
+            if not any(f in raw for f in self.EXPECTED):
+                continue
+            body = raw.replace('\\"', '"')
+            # PRIu32-style splices leave a stray quote pair; drop those first.
+            body = _re.sub(r'"\s*PRI[a-z]\d*\s*"', "", body)
+            body = spec_re.sub(lambda m: "0x1" if m.group(0).endswith("p") else "7", body)
+            body = body.replace("%", "7")          # anything the regex missed
+
+            out = Collected()
+            trk = PbxLogTracker(publish=out, counters_every=1e9, now=lambda: 0.0)
+            trk.feed(f"[00:00:07.000,000] <wrn> firmware: {body}")
+            trk.publish_counters()
+            counters = out.counters[-1]
+
+            expected = next(c for f, c in self.EXPECTED.items() if f in raw)
+            self.assertGreater(
+                counters[expected], 0,
+                f"firmware line did not reach '{expected}':\n  {body!r}")
+            self.assertEqual(
+                trk.lines_rejected, 0,
+                f"firmware line was rejected outright:\n  {body!r}")
+            rendered += 1
+
+        self.assertGreaterEqual(
+            rendered, len(self.EXPECTED),
+            f"only {rendered} firmware lines exercised; expected at least "
+            f"{len(self.EXPECTED)} — the extraction regex may have missed some")
+
+
 class TestRebootAndDrift(unittest.TestCase):
 
     def setUp(self):

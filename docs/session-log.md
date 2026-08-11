@@ -213,15 +213,37 @@ la lista tapaba: **lat/lon idénticas en 3.255 reportes de los tres nodos** con 
 altitud variando normal — firma de `position_precision` cuantizando. Registrado
 en Known constraints; la posición no sirve para nada espacial hasta verificarlo.
 
+### Cuatro decisiones del owner al cierre
+1. **No habrá captura con congestión.** El testbed no llega a esas condiciones a
+   voluntad, así que los seis patrones de pérdida de `pbx_logd` quedan
+   **permanentemente sin verificar contra datos observados** — no es una tarea
+   pendiente, es un caveat. Un cero en esos contadores significa "nunca coincidió",
+   indistinguible de "nunca pasó", y cualquier análisis que se apoye en que estén
+   en cero se apoya en una transcripción.
+   **Mitigación implementada:** `TestLossPatternsAgainstFirmwareSource` extrae los
+   format strings de `LOG_WRN` desde `../meshpbx/src`, los renderiza sustituyendo
+   los especificadores y los alimenta al parser. Ejercita **9 líneas reales del
+   firmware**, y una prueba de mutación confirmó que detecta un mensaje
+   reformulado. Convierte "escribí lo que creo que dice la línea" en "rendericé lo
+   que dice el código". No puede atrapar un mensaje que el firmware nunca emita.
+2. **El reconciliador TX↔RX es análisis offline, no servicio.** Elimina la ventana
+   de gracia, el requisito de sincronizar relojes y un servicio con estado. Queda
+   por escribir un script de join, no un servicio de compose.
+3. **La Pi del gateway es permanente** — *es* el gateway y hostea todo el
+   pipeline. A diferencia de los dos colectores, nada en ella es de campaña, así
+   que el boot desde SSD USB y la dirección estable en la red del edificio son
+   requisitos permanentes. ADR-0002 y `gateway-rpi-5g.md` actualizados.
+4. `position_precision` sigue sin verificar; se le pasó al owner el comando
+   concreto (`meshtastic --info` → `moduleSettings.positionPrecision`), qué
+   significa cada valor y el `--ch-set` que lo corrige en los tres nodos y el
+   gateway.
+
 ### Next steps / open questions
-- **Ninguna captura tiene congestión todavía.** Los seis patrones de pérdida de
-  `pbx_logd` están escritos contra los format strings del C. Un cero en
-  producción significa "no verificado", no "sin pérdidas". Hay un test que falla
-  el día que una captura con congestión reemplace el fixture.
-- Falta el reconciliador TX↔RX — y con la Pi como instrumentación, probablemente
-  deba ser análisis offline y no un servicio.
-- `position_precision` sin verificar (`meshtastic --info`).
-- La Pi del gateway: ¿temporal también, o host permanente del pipeline?
+- Escribir el script de join offline TX↔RX por `pkt_id`.
+- `position_precision`: sin eso, la posición no sirve para nada espacial —
+  incluida la matriz de adyacencia del playbook.
+- Falta el bridge Mosquitto local si alguna campaña atraviesa un enlace no
+  vigilado (opcional desde que los colectores son instrumentación).
 
 ---
 

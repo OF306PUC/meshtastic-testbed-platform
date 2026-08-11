@@ -7,13 +7,19 @@ Pis) · **Revised:** 2026-08-10 (the Pi is instrumentation, not infrastructure)
 · **Revised:** 2026-08-11 (pbx-logd built; P1 was never blocked)
 **Owner:** technical-director
 
-> **Scope correction, 2026-08-10.** This ADR was first written as if the Pi were
-> permanent field infrastructure, and several of its requirements followed from
-> that assumption. It is not. **The Pi is temporary instrumentation**, attached to
-> characterise and validate the platform's performance; the definitive PBX will
-> not include one. Everything below should be read as "for the duration of a
-> measurement campaign", which materially lowers the cost of several items —
+> **Scope correction, 2026-08-10, refined 2026-08-11.** Two of the three Pis are
+> temporary and one is not.
+>
+> The **PBX-site collectors** (`p1`, `p2`) are **temporary instrumentation**,
+> attached to characterise and validate platform performance; the definitive PBX
+> will not include one. Their requirements should be read as "for the duration of
+> a measurement campaign", which materially lowers the cost of several items —
 > noted where it applies.
+>
+> The **gateway Pi is permanent**: it *is* the gateway, and it hosts the whole
+> pipeline. Nothing about it is campaign-scoped, so its USB-SSD boot and its need
+> for a stable address on the building network are standing requirements, not
+> temporary inconveniences.
 **Related:** docs/diagrams/data-flow-measurement-points.md;
 docs/diagrams/container-topology.md; docs/architecture/gateway-rpi-5g.md;
 memory [[pbx-frame-wire-format]], [[data-contract-gateway-web]]
@@ -208,12 +214,22 @@ Non-blocking but shaping:
    line appeared in three mangled forms. Both parsers therefore anchor on ASCII
    only — the firmware writes `→` and `—` freely, and a pattern containing one
    loses about a fifth of its matches silently.
-9. **No congestion has ever been captured.** Every loss pattern in `pbx_logd`
-   (TX queue full, RX overrun, phone queue full) is written against the
-   firmware's format strings, because no captured session has contained one. A
-   zero count for those in production means "unverified", not "no losses". A test
-   asserts they stay zero against the fixture, so it fails the day a capture with
-   congestion replaces it — at which point they become observed.
+9. **The loss patterns will stay unverified against observed data.** Every one in
+   `pbx_logd` (TX queue full, RX overrun, phone queue full) is written from the
+   firmware's format strings, and the owner has confirmed a congestion capture is
+   not going to be available — the testbed does not reach those conditions on
+   demand. This is a permanent caveat, not a pending task:
+
+   **A zero count for those counters means "never matched", which is
+   indistinguishable from "never happened".** Any analysis that leans on them
+   being zero is leaning on an unverified transcription.
+
+   The residual risk is narrow but real: that a format string was transcribed
+   wrong, so the pattern would never fire even during genuine congestion. It is
+   mitigated by deriving the test lines from the firmware source rather than from
+   memory (see `tests/test_pbx_logd.py`), which turns "I typed what I think the
+   line looks like" into "I rendered what the source says it is". That catches a
+   reworded message; it cannot catch a message that is never emitted at all.
 5. **P1's ids are garbage until fixed upstream.** `proxy_id_to_str()` reads 16
    bytes from a 4-byte array, so the `src`/`dst` the firmware prints are
    out-of-bounds reads. This does **not** block the health counters, nor the
@@ -278,13 +294,13 @@ Non-blocking but shaping:
   with no firmware change, which is why the pbx_stats module drafted for that
   purpose was left unwired.
 - ~~Fourth Telegraf block → `pbx_health`~~ **DONE 2026-08-10.**
-- **Reconsider whether the reconciler needs to be a service at all.** It was
-  specified as one because the Pi was assumed permanent, so the TX↔RX join had to
-  happen continuously. For instrumentation the join is an *analysis-time*
-  operation: export `pbx_health` and `pbx_message` and join them on `pkt_id`
-  offline, which removes the grace window, the clock-synchronisation requirement
-  and a long-lived stateful service in one move. A live service is only worth it
-  if the ratio has to be watched while a campaign is running.
+- ~~Reconsider whether the reconciler needs to be a service~~ **Decided
+  2026-08-11: it does not.** The TX↔RX join is an *analysis-time* operation —
+  export `pbx_health` and `pbx_message`, join on `pkt_id` offline. That removes
+  the grace window, the clock-synchronisation requirement and a long-lived
+  stateful service in one move, and it is only possible because the collectors
+  are instrumentation rather than infrastructure. What remains to build is a
+  join script, not a compose service.
 - Ask the PBX repo for: the `proxy_id_to_str()` fix, structured `EVT` lines,
   and a correction to `client-integration.md` §4.1/§4.2, which state
   little-endian where the code and the wire are big-endian.
