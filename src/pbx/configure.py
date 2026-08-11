@@ -215,29 +215,11 @@ def main() -> int:
     ]
     if "position" in intervals:
         gps_flags += ["--set", "position.position_broadcast_secs", str(intervals["position"])]
-
-    # A surveyed position from mesh_config.json is provisioned as the node's fixed
-    # position: for a stationary node it does not drift, does not need sky view,
-    # and is accurate enough to compute inter-node distances from. The node keeps
-    # broadcasting it on the position cadence, so the PDR flow is unaffected.
-    #
-    # NOTE: a reduced `module_settings.position_precision` on the CHANNEL
-    # quantises lat/lon on transmission, so a fixed position is rounded onto a
-    # grid exactly as a GPS fix is. Check that first or exact coordinates go in
-    # and identical ones come out.
-    fixed = mesh_config.position_for(node_cfg)
-    if fixed is not None:
-        gps_flags += ["--set", "position.fixed_position", "true"]
+    # The surveyed `position` block in mesh_config.json is deliberately NOT
+    # written here — see the same note in src/node/configure.py. Provisioning it
+    # would make the node report the survey instead of its own fix, and survey
+    # minus GPS is the GPS error, which is data worth keeping.
     step("GPS", mesh + gps_flags)
-
-    if fixed is not None:
-        # --setlat/--setlon write the node's own position rather than a config
-        # field, and must run after fixed_position is on or they are discarded.
-        pos_flags = ["--setlat", str(fixed["lat"]), "--setlon", str(fixed["lon"])]
-        if fixed["alt"] is not None:
-            pos_flags += ["--setalt", str(fixed["alt"])]
-        print(f"Provisioning surveyed fixed position: {fixed}")
-        step("fixed position", mesh + pos_flags)
 
     # Reboot to apply changes
     step("reboot", mesh + ["--reboot"])

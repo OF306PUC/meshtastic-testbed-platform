@@ -51,26 +51,35 @@ the radio's `position.fixed_position`:
        "position": {"lat": -33.4757888, "lon": -70.5953792, "alt": 590}}
 ```
 
-It lives in that file because it is written **to** the radio, which is what keeps
-`mesh_config.json` a single source rather than a second one: the node then reports
-the position through the normal telemetry path, so the map and the database still
-derive from one place. Analysis-time facts that never reach a radio do not belong
-there.
+It is a **record, not a setting**: nothing writes it to a radio. The dashboard
+reads it so the map shows where the nodes actually are, and `configure.py`
+ignores it entirely.
 
-Absent means "no surveyed position, leave it on GPS" — the same convention
-`intervals` uses. There is no default, because inventing coordinates puts a node
-somewhere it has never been.
+Provisioning it as `position.fixed_position` was considered and rejected. The
+node would then report the survey instead of its own fix, which destroys the one
+comparison worth having — **survey minus GPS-reported is the GPS error**, and on
+a measurement testbed that is a result, not noise to be eliminated. Keeping them
+apart preserves both numbers, which is why `/api/nodes` returns the surveyed
+coordinate as `lat`/`lon` with `source: "surveyed"` and carries the reported one
+alongside as `gps_lat`/`gps_lon`.
 
-For a stationary node a surveyed position beats a GPS fix: it does not drift
-between readings, does not need sky view from under the canopy, and is accurate
-enough to compute inter-node distances from. It also allows turning the GPS off,
-which matters on a solar node.
+Absent means "not surveyed yet" — the same convention `intervals` uses. There is
+no default, because inventing coordinates puts a node somewhere it has never
+been. A node with no survey falls back to `source: "gps"`.
 
-> **Check `position_precision` first.** It is a per-channel `module_settings`
-> value, and a reduced setting quantises lat/lon on transmission — so a fixed
-> position is rounded onto a grid exactly as a GPS fix is. Symptom: every node
-> reports byte-identical lat/lon while altitude varies normally. Read it with
-> `meshtastic --port <dev> --info`.
+A malformed block fails loudly and that node is skipped, rather than reaching the
+map: since nothing provisions this field, the dashboard is its only consumer and
+therefore the only place its validation ever runs.
+
+When surveying, average several readings at each point. A 5 m error per node is
+noise you do not need when the coordinates go on to produce inter-node distances
+for the adjacency matrix.
+
+> **Unrelated but adjacent:** the nodes currently report one byte-identical
+> lat/lon for all three while altitude varies normally, which is the signature of
+> a reduced per-channel `module_settings.position_precision` quantising lat/lon
+> onto a grid. Surveying works around it for the map, but it still makes *reported*
+> position useless. Read it with `meshtastic --port <dev> --info`.
 
 ## Usage
 

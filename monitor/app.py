@@ -5,6 +5,7 @@ eventlet.monkey_patch()
 
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
+from common import mesh_config
 from utils import InfluxDBConnector, MQTTConnector, ALL_FIELDS
 from param import (
     DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME,
@@ -51,28 +52,83 @@ def dashboard():
     return render_template("dashboard.html", node_id=node_id)
 
 
+# ── Surveyed positions ───────────────────────────────────────────────────────
+
+def surveyed_positions():
+    """
+    Yields (node_id, node_label, {"lat","lon","alt"}) for every node whose
+    mesh_config.json entry records a surveyed position.
+
+    Read through common.mesh_config rather than parsed here: nothing provisions
+    that block onto a radio, so this is its only consumer and therefore the only
+    place its validation runs. A malformed coordinate has to fail loudly here or
+    it never fails at all.
+
+    A missing or unreadable file is not an error — it means no surveys yet, and
+    the map falls back to reported GPS.
+    """
+    try:
+        data = mesh_config.load(param.MESH_CONFIG_PATH)
+    except FileNotFoundError:
+        return
+    except Exception as exc:
+        print(f"[CFG] {param.MESH_CONFIG_PATH} unreadable: {exc}")
+        return
+
+    for key, cfg in data["nodes_cfg"].items():
+        node_id = cfg.get("id")
+        if not node_id:
+            continue
+        try:
+            pos = mesh_config.position_for(cfg)
+        except ValueError as exc:
+            # Loud, and skipped: a bad coordinate must not reach the map.
+            print(f"[CFG] node '{key}' has an invalid position: {exc}")
+            continue
+        if pos is not None:
+            yield node_id, f"node-{key}", pos
+
+
 # ── APIs ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/nodes")
 def api_nodes():
     """
-    Latest reported position per node, from the database.
+    Position per node: the surveyed coordinate when one exists, otherwise the
+    latest the node reported over GPS. Each entry says which, in `source`.
 
-    This used to return a hardcoded list, on the reasoning that the nodes are
-    stationary so no query was needed. Two things were wrong with that. The
-    coordinates had drifted ~2 km from what the nodes actually report, so the map
-    showed positions no node had ever been at. And the labels in that list were
-    swapped relative to mesh_config.json — which is the file the gateway reads
-    when it writes the node_label tag — so the API contradicted the database, and
-    anyone correlating a chart against InfluxDB by label was looking at the wrong
-    node.
+    History worth keeping, because it explains the shape. This route used to
+    return a hardcoded list, reasoning that stationary nodes need no query. Its
+    coordinates had drifted ~2 km from anything the nodes reported, so the map
+    showed positions no node had been at, and its labels were swapped relative to
+    mesh_config.json — the file the gateway reads when it writes the node_label
+    tag — so the API contradicted the database and a chart correlated by label
+    pointed at the wrong node.
 
-    Reading the tags back means the label has exactly one source: mesh_config.json
-    via the gateway. A node that has not reported GPS yet is simply absent, which
-    map.html already handles ("No nodes with GPS data yet") — it was written for
-    this shape before the hardcoded list replaced it.
+    Surveyed positions are preferred because they are measured on site and do not
+    drift, and because the GPS is currently reporting one identical coordinate for
+    every node (see project-overview § Known constraints). They are NOT
+    provisioned onto the radios: the node keeps reporting its own fix, and the
+    difference between the two is the GPS error, which is a result rather than
+    noise. That is why both numbers exist and why `source` is exposed instead of
+    silently blending them.
     """
-    return jsonify(db.get_nodes_position())
+    reported = {n["node_id"]: n for n in db.get_nodes_position()}
+    out = []
+
+    for node_id, label, pos in surveyed_positions():
+        entry = {"node_id": node_id, "node_label": label,
+                 "lat": pos["lat"], "lon": pos["lon"], "source": "surveyed"}
+        gps = reported.pop(node_id, None)
+        if gps is not None:
+            # Kept alongside so the map can show how far the fix is off.
+            entry["gps_lat"], entry["gps_lon"] = gps["lat"], gps["lon"]
+        out.append(entry)
+
+    # Nodes with no survey fall back to whatever they reported.
+    for gps in reported.values():
+        out.append({**gps, "source": "gps"})
+    return jsonify(out)
 
 
 @app.route("/api/recent/<node_id>/<field>")

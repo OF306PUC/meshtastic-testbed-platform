@@ -22,5 +22,10 @@ MQTT_PASSWORD  = os.environ.get("MQTT_PASSWORD_MONITOR") or os.environ.get("MQTT
 # Subscribe to all nodes, all data types: meshtastic-testbed/<node>/<type>
 SUBSCRIBE_TOPIC = os.environ.get("SUBSCRIBE_TOPIC", "meshtastic-testbed/+/+")
 
+# Surveyed node positions live in mesh_config.json, mounted read-only into the
+# container. Absent or unreadable is a normal state, not an error: the map then
+# falls back to what the nodes report over GPS.
+MESH_CONFIG_PATH = os.environ.get("MESH_CONFIG_PATH", "/app/mesh_config.json")
+
 TOTAL_SAMPLES_48HRS = 576
 TOTAL_SAMPLES_24HRS = 288

@@ -68,7 +68,10 @@ services:
       - telegraf_network
 
   web:
-    build: ./monitor
+    build:
+      # Repo root, so the image can include src/common alongside monitor/.
+      context: .
+      dockerfile: monitor/Dockerfile
     container_name: meshtastic-testbed-web
     restart: unless-stopped
     env_file: configuration.env          # DB_USERNAME / DB_PASSWORD
@@ -81,6 +84,12 @@ services:
       - CLIENT_ID=meshtastic-testbed-monitor
       # MQTT_USERNAME_MONITOR / MQTT_PASSWORD_MONITOR arrive via env_file above.
       - SUBSCRIBE_TOPIC=meshtastic-testbed/+/+
+      - MESH_CONFIG_PATH=/app/mesh_config.json
+    volumes:
+      # Read-only: the dashboard reads the surveyed `position` blocks so the map
+      # does not depend on a GPS fix. Same file the gateway reads, mounted at the
+      # same path, so there is one source for node identity and geometry.
+      - ./mesh_config.json:/app/mesh_config.json:ro
     ports:
       - "5000:5000"
     depends_on:

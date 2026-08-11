@@ -20,12 +20,19 @@
 #       }
 #     }
 #
-# Everything in this file is written TO the radios — that is what makes it a
-# single source rather than a second one. `position` belongs here for the same
-# reason: it is a SURVEYED position provisioned as `position.fixed_position`, not
-# metadata recorded about a node. The node then reports it through the normal
-# telemetry path, so the map and the database still have exactly one source.
-# Analysis-time facts that are never written to a radio do NOT belong here.
+# Most of this file is written TO the radios, and for those fields that is what
+# makes it a single source rather than a second one — see
+# .claude/memory/pdr-cadence-single-source.md for what drift costs.
+#
+# `position` is the one exception and it is deliberate. It is a SURVEYED
+# position, recorded here and read by the monitor; it is NOT provisioned onto the
+# node. Writing it as `position.fixed_position` was considered and rejected:
+# the node would then report the survey instead of its own fix, and survey minus
+# GPS-reported IS the GPS error, which on a measurement testbed is a result
+# rather than noise to be eliminated. Keeping the two apart preserves both
+# numbers. The field is therefore read-only from the radios' point of view — do
+# not add a `--setlat` to the configure scripts on the assumption that it is
+# missing.
 #
 # `intervals` is AUTHORITATIVE AND COMPLETE per node — absent kinds are NOT
 # filled in from defaults. A node that does not broadcast environment telemetry
@@ -91,13 +98,17 @@ def intervals_for(cfg: dict) -> dict:
 
 def position_for(cfg: dict) -> dict:
     """
-    Surveyed fixed position for one node, or None if it has none.
+    Surveyed position for one node, or None if none was recorded.
 
-    Absent means "this node has no surveyed position — leave it on GPS", the same
-    convention `intervals_for` uses for a flow a node does not broadcast. There is
-    no default: inventing coordinates would put a node somewhere it has never
-    been, which is precisely the failure the hardcoded list in monitor/app.py
-    caused.
+    A record, not a setting: nothing writes this to a radio. It is where the node
+    actually is, measured on site, and the monitor reads it so the map does not
+    depend on a GPS fix. What the node *reports* stays in the database, and the
+    difference between the two is the GPS error.
+
+    Absent means "not surveyed yet", the same convention `intervals_for` uses for
+    a flow a node does not broadcast. There is no default: inventing coordinates
+    would put a node somewhere it has never been, which is precisely the failure
+    the hardcoded list in monitor/app.py caused.
 
     Returns:
         {"lat": float, "lon": float, "alt": int|None} or None.
