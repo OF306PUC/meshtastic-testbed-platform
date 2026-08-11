@@ -156,9 +156,11 @@ def resolve_port(explicit_port):
 def print_local_node(iface, info: dict, issues: list) -> str:
     """Print identity + telemetry of the connected node; return its node id.
 
-    Appends to `issues` when the reported position looks grid-snapped — the
-    end-to-end evidence that position_precision took effect, as opposed to the
-    channel setting merely being stored.
+    Appends to `issues` when the position looks grid-snapped. Note this is the
+    node's OWN position, taken from its GPS — the precision mask is applied when
+    a position is transmitted, so a clean reading here is NOT proof the setting
+    works. The over-the-air evidence is in the remote entries of the node DB
+    (see cross_check_mesh), which is where the quantization was first seen.
     """
     user = info.get("user", {}) or {}
     metrics = info.get("deviceMetrics", {}) or {}
@@ -389,6 +391,22 @@ def cross_check_mesh(iface, local_node_id: str) -> list:
         # Role drift: a known node whose broadcast role differs from the plan.
         if nid in expected_role and role != expected_role[nid]:
             issues.append(f"mesh: {label} ({nid}) role is '{role}', expected '{expected_role[nid]}'")
+
+        # Position quantization, checked here rather than only on the local node:
+        # these coordinates arrived over the air, so they have been through the
+        # sender's precision mask. This is the reading that exposes a node still
+        # running a reduced position_precision — the local node's own GPS value
+        # is pre-mask and looks fine either way.
+        remote_pos = node.get("position", {}) or {}
+        lat, lon = remote_pos.get("latitude"), remote_pos.get("longitude")
+        if nid != local_node_id and lat is not None and lon is not None:
+            tz = min(trailing_zero_bits(lat), trailing_zero_bits(lon))
+            if tz >= 8:
+                grid_km = (1 << tz) * 1e-7 * 111.32
+                issues.append(
+                    f"position: {label} ({nid}) transmits coordinates quantized to "
+                    f"~{grid_km:.2f} km (effective precision {32 - tz}, expected "
+                    f"{radio_config.POSITION_PRECISION}) — reprovision that node")
 
     # Expected-but-absent nodes (offline, out of range, or never heard).
     for nid, label in id_to_label.items():
