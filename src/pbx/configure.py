@@ -152,6 +152,14 @@ def main() -> int:
         "--ch-add", node_params.CHANNEL_MSG_NAME,
     ])
 
+    # Applied after --ch-add so the messaging channel exists to receive it.
+    for ch_idx, ch_name, _ in CHANNELS:
+        step(f"channel {ch_idx} position precision", mesh + [
+            "--ch-index", str(ch_idx),
+            "--ch-set", "module_settings.position_precision",
+            str(node_params.POSITION_PRECISION),
+        ])
+
     # Set PSKs via Python API — the CLI assigns the value as a str to a bytes
     # field, causing "expected bytes, str found". The API accepts bytes directly.
     try:

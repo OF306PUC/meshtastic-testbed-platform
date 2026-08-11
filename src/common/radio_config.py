@@ -33,6 +33,15 @@ CHANNEL_TELEMETRY_IDX  = 0
 CHANNEL_TELEMETRY_NAME = "telCPS_RTC"
 CHANNEL_MSG_IDX = 1
 CHANNEL_MSG_NAME = "msgPUC_NET"
+# Per-channel location precision, in bits of the int32 lat/lon kept when a
+# position is transmitted. 32 = full precision; the firmware default masks off
+# the low bits, so the coordinates arrive snapped to a grid. Both channels get
+# this on every device: it is a per-channel setting, and the sender applies it,
+# so a single unset device publishes quantized positions for itself no matter
+# how the rest of the mesh is configured — and the discarded bits are gone
+# before transmission, so nothing downstream can recover them.
+POSITION_PRECISION = 32
+
 LORA_REGION  = "ANZ"
 LORA_PRESET  = "LONG_TURBO" # Ideally: "MEDIUM_FAST"
 REBROADCAST_MODE = "LOCAL_ONLY"
