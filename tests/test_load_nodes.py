@@ -21,6 +21,7 @@ from pathlib import Path
 # Put src/ on the path so package-absolute imports inside src/ work.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from common import mesh_config  # noqa: E402
 from gateway.receiver import (  # noqa: E402
     load_mesh_config, load_known_nodes, load_intervals,
 )
@@ -245,3 +246,69 @@ class TestLoadIntervals(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPositionFor(unittest.TestCase):
+    """
+    Surveyed fixed positions in mesh_config.json (§ position).
+
+    These land on the radio as `position.fixed_position`, which is why they live
+    in this file at all: everything in mesh_config.json is written TO the radios,
+    and that is what keeps it a single source rather than a second one. A bad
+    coordinate here becomes a bad coordinate in the database, so the reader
+    rejects rather than coerces.
+    """
+
+    def test_absent_means_no_fixed_position(self):
+        """
+        Absence is "leave this node on GPS", not a default. Inventing coordinates
+        is exactly what put three markers 2 km from the nodes in monitor/app.py.
+        """
+        self.assertIsNone(mesh_config.position_for(
+            {"id": "!0b64122b", "hop_limit": 2}))
+
+    def test_full_position_is_returned_as_floats(self):
+        got = mesh_config.position_for(
+            {"position": {"lat": -33.4757888, "lon": -70.5953792, "alt": 590}})
+        self.assertAlmostEqual(got["lat"], -33.4757888)
+        self.assertAlmostEqual(got["lon"], -70.5953792)
+        self.assertEqual(got["alt"], 590)
+
+    def test_altitude_is_optional(self):
+        got = mesh_config.position_for({"position": {"lat": -33.47, "lon": -70.59}})
+        self.assertIsNone(got["alt"])
+
+    def test_half_a_coordinate_is_rejected(self):
+        with self.assertRaises(ValueError):
+            mesh_config.position_for({"position": {"lat": -33.47}})
+
+    def test_out_of_range_is_rejected(self):
+        for bad in ({"lat": -91.0, "lon": -70.59}, {"lat": -33.47, "lon": 181.0}):
+            with self.assertRaises(ValueError):
+                mesh_config.position_for({"position": bad})
+
+    def test_zero_is_rejected_as_unset(self):
+        """
+        0.0 is a legal coordinate and also what an uninitialised field looks
+        like. Provisioning a node into the Gulf of Guinea is worse than failing.
+        """
+        with self.assertRaises(ValueError):
+            mesh_config.position_for({"position": {"lat": 0, "lon": -70.59}})
+
+    def test_a_string_coordinate_is_rejected(self):
+        with self.assertRaises(ValueError):
+            mesh_config.position_for({"position": {"lat": "-33.47", "lon": -70.59}})
+
+    def test_a_typo_in_a_key_is_rejected_not_ignored(self):
+        """
+        Silently ignoring `latitude` would leave the node on GPS while the file
+        claims a surveyed position — the two-sources failure this schema exists
+        to prevent.
+        """
+        with self.assertRaises(ValueError):
+            mesh_config.position_for(
+                {"position": {"latitude": -33.47, "lon": -70.59}})
+
+    def test_a_non_object_position_is_rejected(self):
+        with self.assertRaises(ValueError):
+            mesh_config.position_for({"position": [-33.47, -70.59]})

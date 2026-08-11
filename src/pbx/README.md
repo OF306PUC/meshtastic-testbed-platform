@@ -40,6 +40,38 @@ LoRa node, sharing channels/region/preset/PSKs from `src/common/radio_config.py`
 | `fetch_node_config.py` | Standalone measuring tool: captures the node's boot `want_config` FromRadio burst to size the firmware's config cache (`CONFIG_CACHE_ARENA_BYTES`). Not part of the provisioning flow. |
 | `__init__.py` | Marks `pbx` as an importable package (same pattern as `node`/`gateway`). |
 
+## Surveyed positions
+
+`mesh_config.json` accepts an optional `position` block per node, provisioned as
+the radio's `position.fixed_position`:
+
+```json
+"p1": {"id": "!6c743130", "hop_limit": 2, "device_role": "CLIENT",
+       "intervals": {"device": 600, "position": 1800},
+       "position": {"lat": -33.4757888, "lon": -70.5953792, "alt": 590}}
+```
+
+It lives in that file because it is written **to** the radio, which is what keeps
+`mesh_config.json` a single source rather than a second one: the node then reports
+the position through the normal telemetry path, so the map and the database still
+derive from one place. Analysis-time facts that never reach a radio do not belong
+there.
+
+Absent means "no surveyed position, leave it on GPS" — the same convention
+`intervals` uses. There is no default, because inventing coordinates puts a node
+somewhere it has never been.
+
+For a stationary node a surveyed position beats a GPS fix: it does not drift
+between readings, does not need sky view from under the canopy, and is accurate
+enough to compute inter-node distances from. It also allows turning the GPS off,
+which matters on a solar node.
+
+> **Check `position_precision` first.** It is a per-channel `module_settings`
+> value, and a reduced setting quantises lat/lon on transmission — so a fixed
+> position is rounded onto a grid exactly as a GPS fix is. Symptom: every node
+> reports byte-identical lat/lon while altitude varies normally. Read it with
+> `meshtastic --port <dev> --info`.
+
 ## Usage
 
 Per-PBX settings (`p1` and `p2` differ — e.g. hop limit) live in

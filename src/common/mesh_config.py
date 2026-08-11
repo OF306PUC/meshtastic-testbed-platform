@@ -15,9 +15,17 @@
 #       },
 #       "nodes_cfg": {
 #         "1": {"id": "!0b64122b", "hop_limit": 2, "device_role": "CLIENT_BASE",
-#               "intervals": {"device": 120, "environment": 120, "position": 600}}
+#               "intervals": {"device": 120, "environment": 120, "position": 600},
+#               "position": {"lat": -33.4757888, "lon": -70.5953792, "alt": 590}}
 #       }
 #     }
+#
+# Everything in this file is written TO the radios — that is what makes it a
+# single source rather than a second one. `position` belongs here for the same
+# reason: it is a SURVEYED position provisioned as `position.fixed_position`, not
+# metadata recorded about a node. The node then reports it through the normal
+# telemetry path, so the map and the database still have exactly one source.
+# Analysis-time facts that are never written to a radio do NOT belong here.
 #
 # `intervals` is AUTHORITATIVE AND COMPLETE per node — absent kinds are NOT
 # filled in from defaults. A node that does not broadcast environment telemetry
@@ -78,6 +86,61 @@ def intervals_for(cfg: dict) -> dict:
         if not isinstance(secs, int) or isinstance(secs, bool) or secs <= 0:
             raise ValueError(f"interval for '{kind}' must be a positive int, got {secs!r}")
         out[kind] = secs
+    return out
+
+
+def position_for(cfg: dict) -> dict:
+    """
+    Surveyed fixed position for one node, or None if it has none.
+
+    Absent means "this node has no surveyed position — leave it on GPS", the same
+    convention `intervals_for` uses for a flow a node does not broadcast. There is
+    no default: inventing coordinates would put a node somewhere it has never
+    been, which is precisely the failure the hardcoded list in monitor/app.py
+    caused.
+
+    Returns:
+        {"lat": float, "lon": float, "alt": int|None} or None.
+
+    Raises:
+        ValueError on a malformed or out-of-range block. Failing here beats
+        writing a bad coordinate to a radio and discovering it in the data.
+    """
+    raw = cfg.get("position")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError(f"'position' must be an object, got {raw!r}")
+
+    for key in ("lat", "lon"):
+        if key not in raw:
+            raise ValueError(f"'position' needs both 'lat' and 'lon' (missing '{key}')")
+
+    out = {}
+    for key, limit in (("lat", 90.0), ("lon", 180.0)):
+        val = raw[key]
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            raise ValueError(f"position '{key}' must be a number, got {val!r}")
+        if not -limit <= val <= limit:
+            raise ValueError(f"position '{key}' out of range: {val!r}")
+        # 0.0 is a legal coordinate but not one this testbed will ever occupy;
+        # it is what an uninitialised field looks like, so reject it explicitly
+        # rather than provisioning a node into the Gulf of Guinea.
+        if val == 0:
+            raise ValueError(f"position '{key}' is 0 — looks unset, not surveyed")
+        out[key] = float(val)
+
+    alt = raw.get("alt")
+    if alt is not None:
+        if isinstance(alt, bool) or not isinstance(alt, (int, float)):
+            raise ValueError(f"position 'alt' must be a number, got {alt!r}")
+        out["alt"] = int(alt)
+    else:
+        out["alt"] = None
+
+    unknown = set(raw) - {"lat", "lon", "alt"}
+    if unknown:
+        raise ValueError(f"unknown keys in 'position': {sorted(unknown)}")
     return out
 
 

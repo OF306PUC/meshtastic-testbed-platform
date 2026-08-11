@@ -116,7 +116,32 @@ def main():
     )
     if "position" in intervals:
         gps_flags += f" --set position.position_broadcast_secs {intervals['position']}"
+
+    # A surveyed position, when mesh_config.json declares one, is provisioned as
+    # the node's fixed position. For a stationary node this beats a GPS fix on
+    # three counts: it does not drift between readings, it does not depend on sky
+    # view from under the canopy, and it is accurate enough to compute inter-node
+    # distances from — which is what the adjacency matrix needs. The node keeps
+    # broadcasting it on the position cadence, so the PDR flow is unaffected.
+    #
+    # NOTE: a reduced `module_settings.position_precision` on the CHANNEL
+    # quantises lat/lon on transmission, so a fixed position gets rounded onto a
+    # grid just as a GPS fix does. Check that first, or exact coordinates in and
+    # still-identical coordinates out.
+    fixed = mesh_config.position_for(node_cfg)
+    if fixed is not None:
+        gps_flags += " --set position.fixed_position true"
     run(f"meshtastic {port_flag}{gps_flags}")
+
+    if fixed is not None:
+        # --setlat/--setlon are separate from --set: they write the node's own
+        # position rather than a config field, and must land after
+        # fixed_position is on or the firmware discards them.
+        pos_flags = f" --setlat {fixed['lat']} --setlon {fixed['lon']}"
+        if fixed["alt"] is not None:
+            pos_flags += f" --setalt {fixed['alt']}"
+        print(f"Provisioning surveyed fixed position: {fixed}")
+        run(f"meshtastic {port_flag}{pos_flags}")
 
     # Reboot to apply changes
     run(f"meshtastic {port_flag} --reboot")
