@@ -8,10 +8,12 @@ Connects to a node over serial and reports, in one pass:
                           from the node (device/role, BLE, LoRa, GPS + intervals,
                           telemetry intervals, serial module). Role-agnostic:
                           works for sensor, gateway and PBX nodes alike.
-  3. Radio health-check – region / preset / rebroadcast / channels / PSKs
-                          compared against common/radio_config.py. A mismatch
-                          here means this node cannot talk to the rest of the
-                          mesh. PSKs are compared but never printed.
+  3. Radio health-check – region / preset / rebroadcast / channels / PSKs /
+                          position_precision compared against
+                          common/radio_config.py. A mismatch here means this
+                          node cannot talk to the rest of the mesh (or, for
+                          position_precision, that it is publishing coarsened
+                          coordinates). PSKs are compared but never printed.
   4. Mesh node database – every node this device has heard (iface.nodes),
                           cross-checked against mesh_config.json: known nodes
                           are labelled (1/2/3/p1/p2) and their broadcast role
@@ -89,6 +91,20 @@ def decode_psk(psk_b64: str) -> bytes:
     return base64.b64decode(psk_b64)
 
 
+def trailing_zero_bits(deg: float) -> int:
+    """Count the zero low bits of a coordinate in Meshtastic's int32 encoding.
+
+    Positions travel as int32 in units of 1e-7 degrees, and position_precision
+    keeps only the top N bits — so a precision-reduced coordinate is an exact
+    multiple of 2**(32-N) and the mask is visible in the value itself. A
+    full-precision GPS reading has effectively random low bits.
+    """
+    units = round(abs(deg) * 1e7)
+    if units == 0:                       # 0.0 is "no fix", not "quantized"
+        return 0
+    return (units & -units).bit_length() - 1
+
+
 def fmt(value, unit: str = "") -> str:
     """Format an optional metric, falling back to '?' when absent."""
     if value is None:
@@ -137,8 +153,13 @@ def resolve_port(explicit_port):
 # ── Section 1: local node ───────────────────────────────────────────────────
 
 
-def print_local_node(iface, info: dict) -> str:
-    """Print identity + telemetry of the connected node; return its node id."""
+def print_local_node(iface, info: dict, issues: list) -> str:
+    """Print identity + telemetry of the connected node; return its node id.
+
+    Appends to `issues` when the reported position looks grid-snapped — the
+    end-to-end evidence that position_precision took effect, as opposed to the
+    channel setting merely being stored.
+    """
     user = info.get("user", {}) or {}
     metrics = info.get("deviceMetrics", {}) or {}
     node_id = user.get("id", "?")
@@ -171,8 +192,20 @@ def print_local_node(iface, info: dict) -> str:
 
     pos = info.get("position", {}) or {}
     if pos.get("latitude") is not None and pos.get("longitude") is not None:
-        print(f"    Position           : {pos['latitude']:.5f}, {pos['longitude']:.5f}"
+        print(f"    Position           : {pos['latitude']:.7f}, {pos['longitude']:.7f}"
               f" (alt {fmt(pos.get('altitude'), ' m')})")
+        # Both coordinates snapped to the same power-of-two grid is a mask, not
+        # a coincidence: 8 shared zero low bits happen by chance once in ~65k.
+        tz = min(trailing_zero_bits(pos["latitude"]), trailing_zero_bits(pos["longitude"]))
+        if tz >= 8:
+            grid_km = (1 << tz) * 1e-7 * 111.32
+            print(f"    !! quantized to a 2**{tz} grid (~{grid_km:.2f} km) "
+                  f"-> effective precision {32 - tz}, expected "
+                  f"{radio_config.POSITION_PRECISION}")
+            issues.append(
+                f"position: reported coordinates are quantized to ~{grid_km:.2f} km "
+                f"(effective precision {32 - tz}, expected "
+                f"{radio_config.POSITION_PRECISION})")
     else:
         print("    Position           : (no fix)")
     print()
@@ -302,6 +335,13 @@ def radio_health_check(iface) -> list:
         print(f"  [{verdict}] channel {idx} PSK: {'matches .env' if psk_ok else 'differs from .env'}")
         if not psk_ok:
             issues.append(f"radio: channel {idx} PSK differs from .env")
+        # Per-channel and applied by the SENDER, so it has to be right on every
+        # device — a single unprovisioned radio coarsens its own positions no
+        # matter how the rest of the mesh is set. Reading it back is the only
+        # way to confirm it: `--info` omits the field while it holds the
+        # firmware default, so absence there means "unset", not "full".
+        check(f"channel {idx} position_precision", radio_config.POSITION_PRECISION,
+              settings.module_settings.position_precision)
     print()
     return issues
 
@@ -405,7 +445,7 @@ def main() -> int:
     issues = []
     try:
         info = iface.getMyNodeInfo()
-        local_node_id = print_local_node(iface, info)
+        local_node_id = print_local_node(iface, info, issues)
         print_device_config(iface)
         issues += radio_health_check(iface)
         if not args.no_mesh:
