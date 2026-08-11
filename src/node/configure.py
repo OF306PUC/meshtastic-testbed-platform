@@ -32,10 +32,6 @@ def main():
     hop_limit = node_cfg["hop_limit"]
     device_role = node_cfg["device_role"]
 
-    # Broadcast cadences come from mesh_config.json so the gateway's PDR
-    # estimator measures against exactly what gets written to the radio. A kind
-    # omitted there is left at whatever the firmware already holds, and the
-    # gateway tracks no PDR for it.
     print(f"Broadcast cadences from mesh_config.json: {intervals}")
 
     # radio_config only enforces the telemetry PSK; the messaging channel is
@@ -49,8 +45,7 @@ def main():
     print("Starting node configuration using meshtastic CLI...")
 
     # LoRa config: region, preset, hop limit. sx126x_rx_boosted_gain is
-    # honoured only by SX126x radios; on an SX127x T-Beam it is stored but
-    # ignored (harmless), so we set it mesh-wide from radio_config.
+    # honoured only by SX126x radios.
     run(
         f"meshtastic {port_flag} --set lora.region {node_params.LORA_REGION}"
         f" --set lora.modem_preset {node_params.LORA_PRESET}"
@@ -58,10 +53,7 @@ def main():
         f" --set lora.sx126x_rx_boosted_gain {str(node_params.SX126X_RX_BOOSTED_GAIN).lower()}"
     )
 
-    # Device config: role then rebroadcast mode (role varies by node position),
-    # chained in ONE invocation so the CLI applies both in a single config
-    # write. Role is ordered first; rebroadcast is verified afterwards, so a
-    # dropped write (role reboots) is still caught by the check below.
+    # Device config: role then rebroadcast mode (role varies by node position).
     run(
         f"meshtastic {port_flag} --set device.role {device_role}"
         f" --set device.rebroadcast_mode {node_params.REBROADCAST_MODE}"
@@ -74,7 +66,7 @@ def main():
     else:
         print(f"Verified device.rebroadcast_mode = {node_params.REBROADCAST_MODE}")
 
-    # Channel config (this may trigger radio re-init)
+    # Telemetry channel (index 0):
     run(
         f'meshtastic {port_flag} --ch-set name "{node_params.CHANNEL_TELEMETRY_NAME}" '
         f'--ch-set psk {node_params.CHANNEL_TELEMETRY_PSK_B64} '
@@ -82,9 +74,7 @@ def main():
     )
 
     # Messaging channel (index 1): with REBROADCAST_MODE=LOCAL_ONLY a node only
-    # relays channels it has configured, so every node must join PUC_NET for
-    # phone messages (via the BLE proxies) to traverse the mesh. Re-running
-    # --ch-add on an existing channel just logs an error and continues.
+    # relays channels it has configured.
     run(f'meshtastic {port_flag} --ch-add "{node_params.CHANNEL_MSG_NAME}"')
     run(
         f'meshtastic {port_flag} --ch-set psk {node_params.CHANNEL_MSG_PSK_B64} '
@@ -104,10 +94,7 @@ def main():
         telemetry_flags += f" --set telemetry.environment_update_interval {intervals['environment']}"
     run(f"meshtastic {port_flag}{telemetry_flags}")
 
-    # GPS config. position_broadcast_smart_enabled is set explicitly (firmware
-    # default is true): with smart broadcast on, a moving node emits extra
-    # position packets outside the periodic timer, which invalidates the
-    # fixed-cadence assumption the gateway's PDR estimator depends on.
+    # GPS config.
     SMART_POS = str(node_params.POSITION_BROADCAST_SMART_ENABLED).lower()
     gps_flags = (
         f" --set position.gps_mode {node_params.GPS_MODE}"
@@ -116,11 +103,6 @@ def main():
     )
     if "position" in intervals:
         gps_flags += f" --set position.position_broadcast_secs {intervals['position']}"
-    # The surveyed `position` block in mesh_config.json is deliberately NOT
-    # written here. Provisioning it as position.fixed_position would make the
-    # node report the survey instead of its own fix, which destroys the one
-    # comparison worth having: survey vs GPS is the GPS error, and on a
-    # measurement testbed that is data. Keeping them apart preserves both.
     run(f"meshtastic {port_flag}{gps_flags}")
 
     # Reboot to apply changes

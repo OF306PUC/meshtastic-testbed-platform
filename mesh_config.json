@@ -5,14 +5,19 @@
     },
     "nodes_cfg": {
         "1": {"id": "!0b64122b", "hop_limit": 2, "device_role": "CLIENT_BASE",
-              "intervals": {"device": 120, "environment": 120, "position": 600}},
+              "intervals": {"device": 120, "environment": 120, "position": 600},
+              "position":  {"lat": -33.4969028, "lon": -70.610127778, "alt": 0}},
         "2": {"id": "!7c70da02", "hop_limit": 2, "device_role": "CLIENT",
-              "intervals": {"device": 120, "environment": 120, "position": 600}},
+              "intervals": {"device": 120, "environment": 120, "position": 600},
+              "position":  {"lat": -33.4971361, "lon": -70.607544444, "alt": 0}},
         "3": {"id": "!32fe0d4e", "hop_limit": 2, "device_role": "CLIENT",
-              "intervals": {"device": 120, "environment": 120, "position": 600}},
-        "p1": {"id": "!6c743130", "hop_limit": 2, "device_role": "CLIENT",
-               "intervals": {"device": 600, "position": 1800}},
-        "p2": {"id": "!bb8106c4", "hop_limit": 2, "device_role": "CLIENT",
-               "intervals": {"device": 600, "position": 1800}}
+              "intervals": {"device": 120, "environment": 120, "position": 600},
+              "position":  {"lat": -33.5002389, "lon": -70.611922222, "alt": 0}},
+        "p1": {"id": "!bb8106c4", "hop_limit": 2, "device_role": "CLIENT",
+               "intervals": {"device": 600, "position": 1800},
+               "position":  {"lat": -33.4969028, "lon": -70.610127778, "alt": 0}},
+        "p2": {"id": "!6c743130", "hop_limit": 2, "device_role": "CLIENT",
+               "intervals": {"device": 600, "position": 1800},
+               "position":  {"lat": -33.4999417, "lon": -70.614008333, "alt": 0}}
     }
 }

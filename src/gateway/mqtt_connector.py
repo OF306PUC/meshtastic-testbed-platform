@@ -48,8 +48,7 @@ class MQTTConnector:
         self.client.on_connect    = self.on_connect
         self.client.on_disconnect = self.on_disconnect
 
-    # ── Callbacks ─────────────────────────────────────────────────────────────
-
+    # Callbacks:
     def on_connect(self, client, userdata, flags, rc, properties):
         """
         Called when the client receives a CONNACK response from the broker.
@@ -82,8 +81,7 @@ class MQTTConnector:
         if not self._connected_event.wait(timeout):
             raise RuntimeError(f"[MQTT] Could not connect to broker at {self.broker_address}:{self.port} within {timeout}s")
 
-    # ── Connection ────────────────────────────────────────────────────────────
-
+    # Connection:
     def connect(self):
         """Connect to the MQTT broker and start background network loop."""
         self.client.connect(self.broker_address, self.port, keepalive=60)
@@ -95,8 +93,7 @@ class MQTTConnector:
         self.client.disconnect()
         print("[MQTT] Disconnected from broker.")
 
-    # ── Publishing ────────────────────────────────────────────────────────────
-
+    # Publishing:
     def publish(self, topic: str, message: str):
         """
         Publish a raw string message to a topic.

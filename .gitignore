@@ -28,3 +28,6 @@ platform-testing.zip
 CLAUDE.md
 # Editor
 .vscode/
+
+# Device console captures: contain phone numbers and message content
+captures/

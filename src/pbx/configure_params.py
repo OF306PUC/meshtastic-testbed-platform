@@ -6,8 +6,8 @@ from common.radio_config import (
     LORA_REGION, LORA_PRESET, REBROADCAST_MODE, SX126X_RX_BOOSTED_GAIN,
 )
 
-# ── PBX-attached node settings ──────────────────────────────────────────────
-# This node hangs off the nRF52840 PBX (../meshpbx) over
+# PBX-attached node settings:
+# This node hangs off the nRF52840 PBX over
 # UART: the PBX multiplexes up to n phones onto this single node, so the
 # node's own BLE is disabled and the Stream API is exposed on UART1 instead.
 
@@ -16,9 +16,7 @@ BLUETOOTH_ENABLE = False
 
 # Telemetry settings
 # The broadcast cadence (device_update_interval) is NOT here: it lives per node
-# in mesh_config.json under "intervals", because the gateway's PDR estimator
-# measures against the very same number. Two copies would drift and the receiver
-# would infer losses against a cadence the node was never given.
+# in mesh_config.json under "intervals".
 TELEMETRY_DEV_MEAS_ENABLED = True
 
 # Serial module: exposes the Stream API (PhoneAPI framing) on UART1 so the
@@ -33,17 +31,7 @@ SERIAL_MODULE_RXD = 35
 SERIAL_MODULE_BAUDRATE = "BAUD_115200"
 SERIAL_MODULE_TIMEOUT = 20             # [mili-seconds]
 
-# Device role and hop limit are per-PBX (p1 vs p2 differ) and live in
-# mesh_config.json — configure.py reads them via --node-id.
-
-# GPS settings (optional)
-# position_broadcast_secs (the over-air cadence) lives in mesh_config.json
-# ("intervals".position) — see the telemetry note above. Only the local fix
-# cadence, which costs no mesh airtime, stays here.
+# GPS settings
 GPS_MODE = "ENABLED"
 GPS_UPDATE_INTERNAL_INTERVAL = 1800              # [seconds] = 30 min (local GPS fix)
-
-# Smart position broadcast defaults to TRUE in firmware and adds
-# movement-triggered position packets on top of the periodic timer, which breaks
-# the fixed-cadence assumption the gateway's PDR estimator relies on.
 POSITION_BROADCAST_SMART_ENABLED = False

@@ -8,7 +8,7 @@ from common.radio_config import (
     LORA_REGION, LORA_PRESET, SX126X_RX_BOOSTED_GAIN,
 )
 
-# ── Gateway-specific settings (receive-only data sink) ────────────────────────
+# Gateway-specific settings:
 
 # Telemetry disabled — the gateway only sinks data, it does not sense.
 TELEMETRY_ENV_MEAS_ENABLED = False

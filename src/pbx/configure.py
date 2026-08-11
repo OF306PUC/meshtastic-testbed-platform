@@ -93,19 +93,12 @@ def main() -> int:
     parser.add_argument("--port", required=True, help="Serial port of the device (e.g. /dev/ttyUSB0)")
     args = parser.parse_args()
 
-    # Per-PBX settings (p1 and p2 have different hop limits) live in
-    # mesh_config.json, same registry as the sensing nodes.
     node_cfg, intervals = load_config(args.node_id)
     hop_limit = node_cfg["hop_limit"]
     device_role = node_cfg["device_role"]
 
-    # Broadcast cadences live in mesh_config.json, the same numbers the gateway's
-    # PDR estimator measures against. A kind omitted there is left untouched on
-    # the radio and untracked by the gateway.
     print(f"Broadcast cadences from mesh_config.json: {intervals}")
 
-    # radio_config already enforces the telemetry PSK; the PBX node also
-    # needs the messaging channel key, so fail early if it is missing.
     if not node_params.CHANNEL_MSG_PSK_B64:
         print(
             "ERROR: LORA_MSG_CHANNEL_PSK is not set. Copy .env.example to .env "
@@ -113,9 +106,7 @@ def main() -> int:
         )
         return 2
 
-    # Base argv for every meshtastic CLI invocation (no shell → no quoting issues).
     mesh = ["meshtastic", "--port", args.port]
-
     failures = []
 
     def step(label, cmd):
@@ -125,9 +116,7 @@ def main() -> int:
 
     print(f"Starting PBX-node configuration of '{args.node_id}' on {args.port}...")
 
-    # LoRa config: region, preset, hop limit. sx126x_rx_boosted_gain is
-    # honoured only by SX126x radios; on an SX127x T-Beam it is stored but
-    # ignored (harmless), so we set it mesh-wide from radio_config.
+    # LoRa config: 
     step("LoRa (region/preset/hop_limit)", mesh + [
         "--set", "lora.region", node_params.LORA_REGION,
         "--set", "lora.modem_preset", node_params.LORA_PRESET,
@@ -135,10 +124,7 @@ def main() -> int:
         "--set", "lora.sx126x_rx_boosted_gain", str(node_params.SX126X_RX_BOOSTED_GAIN).lower(),
     ])
 
-    # Device config: role then rebroadcast mode, chained in ONE invocation so
-    # the CLI applies both in a single config write. Role is ordered first;
-    # rebroadcast is verified afterwards, so a dropped write (role reboots) is
-    # still caught by the check below.
+    # Device config: 
     step("device role + rebroadcast_mode", mesh + [
         "--set", "device.role", device_role,
         "--set", "device.rebroadcast_mode", node_params.REBROADCAST_MODE,
@@ -204,9 +190,7 @@ def main() -> int:
     else:
         step("serial module", mesh + ["--set", "serial.enabled", serial_en])
 
-    # GPS config. position_broadcast_smart_enabled is set explicitly (firmware
-    # default is true): movement-triggered extra position packets would break the
-    # fixed-cadence assumption behind the gateway's PDR estimator.
+    # GPS config:
     gps_flags = [
         "--set", "position.gps_mode", node_params.GPS_MODE,
         "--set", "position.gps_update_interval", str(node_params.GPS_UPDATE_INTERNAL_INTERVAL),
@@ -215,10 +199,6 @@ def main() -> int:
     ]
     if "position" in intervals:
         gps_flags += ["--set", "position.position_broadcast_secs", str(intervals["position"])]
-    # The surveyed `position` block in mesh_config.json is deliberately NOT
-    # written here — see the same note in src/node/configure.py. Provisioning it
-    # would make the node report the survey instead of its own fix, and survey
-    # minus GPS is the GPS error, which is data worth keeping.
     step("GPS", mesh + gps_flags)
 
     # Reboot to apply changes

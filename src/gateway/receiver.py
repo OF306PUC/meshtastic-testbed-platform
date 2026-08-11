@@ -106,7 +106,7 @@ def main():
         sweep_interval_sec=mesh_config.sweep_interval_sec(data),
     )
     receiver.connect(devPath=port)
-    receiver.listen()  # blocks until Ctrl+C
+    receiver.listen()  
 
 
 if __name__ == "__main__":

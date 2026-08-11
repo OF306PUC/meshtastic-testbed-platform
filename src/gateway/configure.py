@@ -26,8 +26,7 @@ def main():
 
     print("Starting node configuration using meshtastic CLI...")
 
-    # LoRa config: region, preset, and device role. sx126x_rx_boosted_gain is
-    # SX126x-only (stored but ignored on an SX127x T-Beam), set mesh-wide.
+    # LoRa config: region, preset, and device role.
     run(
         f"meshtastic {port_flag} --set lora.region {node_params.LORA_REGION}"
         f" --set lora.modem_preset {node_params.LORA_PRESET}"
@@ -35,17 +34,14 @@ def main():
         f" --set device.role {node_params.DEVICE_ROLE}"
     )
 
-    # Channel config (this may trigger radio re-init)
+    # Telemetry channel (index 0):
     run(
         f'meshtastic {port_flag} --ch-set name "{node_params.CHANNEL_TELEMETRY_NAME}" '
         f'--ch-set psk {node_params.CHANNEL_TELEMETRY_PSK_B64} '
         f'--ch-index {node_params.CHANNEL_TELEMETRY_IDX}'
     )
 
-    # Messaging channel (index 1): the gateway is CLIENT_MUTE (never relays)
-    # but still needs PUC_NET configured to decode phone messages arriving
-    # from the BLE proxies. Re-running --ch-add on an existing channel just
-    # logs an error and continues.
+    # Messaging channel (index 1): 
     run(f'meshtastic {port_flag} --ch-add "{node_params.CHANNEL_MSG_NAME}"')
     run(
         f'meshtastic {port_flag} --ch-set psk {node_params.CHANNEL_MSG_PSK_B64} '

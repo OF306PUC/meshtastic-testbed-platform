@@ -45,25 +45,13 @@ class CadencePdrTracker:
         slots  = round(dt / T)          # nominal intervals the gap spans
         missed = max(0, slots - 1)
 
-    round(), not floor(): firmware jitter is roughly symmetric around T, so
-    floor() would invent a loss on every packet that runs slightly late.
-
     State is per flow — a (node_label, kind) pair with kind in
-    ("device", "environment", "position").  Each flow keeps a cumulative
-    ratio and a rolling window whose length is derived from the configured
-    window: because missed slots are pushed as 0s alongside received slots as
-    1s, `maxlen = window_sec / T` slots IS a time window, with no timestamp
-    bookkeeping.
+    ("device", "environment", "position"). 
 
     Accuracy and limitations, stated on purpose:
 
     * ±1 packet per gap.  The firmware defers broadcasts under channel
       congestion, so T is nominal, not exact.
-    * `pdr` can never exceed 1.0 (missed >= 0 by construction).  The signal for
-      a broken cadence assumption is `early_count`: a reception arriving well
-      inside one nominal interval, which the model does not predict.  The usual
-      cause is `position_broadcast_smart_enabled` left on, which adds
-      movement-triggered position broadcasts on top of the periodic timer.
     * A powered-off node inflates `missed`.  Reboots are detected from
       deviceMetrics.uptimeSeconds by the caller, which then re-anchors the
       flow so the downtime gap is not charged as radio loss.
@@ -71,14 +59,13 @@ class CadencePdrTracker:
       carries no delivery information, and reporting 1.0 there would be a lie.
     """
 
-    MIN_WINDOW_SLOTS = 3    # a 1-2 slot window is noise, not a measurement
+    MIN_WINDOW_SLOTS = 3   
 
     def __init__(self):
         self._flows = {}
         self._lock  = threading.Lock()
 
-    # ── Public API ────────────────────────────────────────────────────────────
-
+    # Public API:
     def observe(self, flow: tuple, interval: int, window_sec: int, now: float) -> dict:
         """
         Records one reception on `flow`.  `now` MUST come from time.monotonic():
@@ -109,10 +96,7 @@ class CadencePdrTracker:
 
             if slots == 0:
                 # Arrived inside a single nominal interval: an extra broadcast
-                # the cadence model does not predict.  Counted separately and
-                # given no slot, and the grid anchor is deliberately NOT moved —
-                # advancing `last` here would make the next on-schedule packet
-                # look early too, and the whole grid would drift.
+                # the cadence model does not predict.  
                 f["early"] += 1
                 return self._snapshot(f, gap_s=round(dt, 1), missed_now=0)
 
@@ -128,12 +112,6 @@ class CadencePdrTracker:
     def sweep(self, now: float) -> list:
         """
         Charges provisional losses for flows that have gone quiet.
-
-        Without this the estimator is purely reception-driven, so a node that
-        dies keeps its last PDR forever — precisely the survivorship bias the
-        measurement exists to avoid.  `charged` records what has already been
-        billed for the current gap so the eventual reception does not count it
-        twice.
 
         Returns [(flow, snapshot)] for the flows that changed.
         """
@@ -154,10 +132,6 @@ class CadencePdrTracker:
         """
         Refunds losses charged during a gap that was NOT a radio loss (the node
         was down) and restarts the cadence grid at `now`.
-
-        `last` moves to `now` so sweep() stops charging for the downtime, and
-        `restart` makes the next reception a grid start rather than a packet
-        measured against a gap that never was.
         """
         with self._lock:
             f = self._flows.get(flow)
@@ -171,8 +145,7 @@ class CadencePdrTracker:
             f["last"]    = now
             f["restart"] = True
 
-    # ── Internals ─────────────────────────────────────────────────────────────
-
+    # Internals:
     def _new_flow(self, interval: int, window_sec: int, now: float) -> dict:
         slots = max(self.MIN_WINDOW_SLOTS, round(window_sec / interval))
         return {
@@ -200,8 +173,6 @@ class CadencePdrTracker:
             "missed_est":        f["missed"],
             "missed_now":        missed_now,
             "early_count":       f["early"],
-            # 0/1, not a bool: Telegraf's json parser converts numbers and
-            # silently DROPS booleans, so a bool field never reaches InfluxDB.
             "cadence_violated":  int(f["early"] > 0),
             "gap_s":             gap_s,
         }
@@ -213,16 +184,9 @@ class MeshReceiver:
     position and PBX-message packets from known nodes, publishes them to MQTT,
     and estimates per-flow packet delivery ratio from the known broadcast
     cadence (see CadencePdrTracker).
-
-    PBX application frames come in two shapes, selected by portnum:
-        PRIVATE_APP       [version:1][src_id:4][dst_id:4][content]  routed unicast
-        TEXT_MESSAGE_APP  [version:1][src_id:4][content]            broadcast
-
-    They carry NO cadence, so they are captured and published but contribute no
-    PDR.
     """
 
-    SEEN_MAX = 200
+    SEEN_MAX = 50
 
     _APP_FIELDS = ["PRIVATE_APP", "TEXT_MESSAGE_APP", "TELEMETRY_APP", "POSITION_APP"]
 
@@ -235,10 +199,7 @@ class MeshReceiver:
             mqtt:            publish-only MQTT connector.
             known_nodes:     {node_id: label}, e.g. {"!0b64122b": "node-1"}.
             intervals:       {label: {kind: seconds}} broadcast cadences, from
-                             mesh_config.json.  A kind absent for a node means
-                             that node does not broadcast it, so no PDR is
-                             tracked for that flow.  Defaults to the sensing-node
-                             profile for every known node.
+                             mesh_config.json.
             pdr_window_sec:  {kind: seconds} rolling-window length per flow kind.
             capture_content: publish PBX message *content*, not just metadata.
                              Off by default: these are real phone messages, and
@@ -278,9 +239,6 @@ class MeshReceiver:
     def listen(self):
         """
         Subscribes to incoming packets and blocks until KeyboardInterrupt.
-
-        The loop also drives the PDR sweep: losses must be charged while a node
-        is silent, otherwise a dead node's PDR would freeze at its last value.
         """
         pub.subscribe(self._on_receive, "meshtastic.receive")
         print("Listening... Ctrl+C to stop.\n")
@@ -302,8 +260,7 @@ class MeshReceiver:
             self.iface.close()
         self.mqtt.close()
 
-    # ── Packet handling ───────────────────────────────────────────────────────
-
+    # Packet handling:
     def _on_receive(self, packet, interface):
         try:
             if not packet or "decoded" not in packet:
@@ -318,11 +275,7 @@ class MeshReceiver:
             hop_taken  = (hop_start - hop_limit
                           if hop_start is not None and hop_limit is not None
                           else None)
-            # Default to 0 explicitly: protobuf3 omits default values, so the
-            # key is simply absent for channel 0 and a bare .get() would yield
-            # None — which Telegraf drops, losing the tag on most traffic.
-            # This is the channel INDEX. The node's own console logs a channel
-            # HASH (Ch=0xec) on over-the-air lines; they are not the same thing.
+            # Default to 0 explicitly:
             channel    = packet.get("channel", 0)
 
             if not self._is_valid(sender_id, sender_num, packet.get("id")):
@@ -368,11 +321,6 @@ class MeshReceiver:
     def _is_valid(self, sender_id: str, sender_num: int, packet_id) -> bool:
         """
         Returns False if the packet should be dropped.
-
-        The dedup step is load-bearing for PDR: a rebroadcast counted as a
-        second reception would inflate the ratio.  SEEN_MAX=200 covers roughly
-        20 minutes at the testbed's cadences, far longer than the few seconds a
-        rebroadcast takes to arrive.
         """
         if sender_id == self.my_id or sender_num == self.my_num:
             return False
@@ -385,8 +333,7 @@ class MeshReceiver:
                 self.seen_ids.append(packet_id)
         return True
 
-    # ── PDR plumbing ──────────────────────────────────────────────────────────
-
+    # PDR plumbing:
     def _pdr_fields(self, label: str, kind: str, now_mono: float) -> dict:
         """
         Records a reception and returns the PDR fields for the payload.
@@ -436,16 +383,13 @@ class MeshReceiver:
                   f"(+{snapshot['missed_now']} missed, pdr={snapshot['pdr']})")
             self.mqtt.publish_pdr(label, payload)
 
-    # ── Telemetry parsers ─────────────────────────────────────────────────────
-
+    # Telemetry parsers:
     def _handle_text_message(
             self, node_id: str, label: str, payload: bytes, portnum: str,
             rssi: int, snr: int, hop: int, channel: int, received_at: int,
             pkt_id=None):
         """
         Parses one PBX application frame and publishes its metadata.
-
-        No PDR here: phone messages have no cadence to measure against.
         """
         frame = self._parse_pbx_frame(payload, portnum)
         if frame is None:
@@ -499,11 +443,6 @@ class MeshReceiver:
         Unpacks a PBX frame using the header layout its portnum implies
         (see _FRAME_HDRS).  Broadcast frames carry no destination, so "dst_id"
         comes back None rather than a fabricated value.
-
-        Returns None when the portnum carries no PBX header, the payload is
-        not bytes, it is shorter than that header, or the VERSION byte is not
-        one this parser knows — a truncated or future-format frame must be
-        reported as a loss, not guessed at.
         """
         hdr = _FRAME_HDRS.get(portnum)
         if hdr is None:
@@ -523,9 +462,6 @@ class MeshReceiver:
         offset = hdr.size
         return {
             "fw_ver":      fw_ver,
-            # Decimal uint32: matches how the PBX logs the id ("+56<uint32>")
-            # and what the phone writes to NODE_REG, so the ids cross-reference
-            # with the firmware side instead of only with themselves.
             "src_id":      str(src),
             "dst_id":      str(dst) if dst is not None else None,
             "content":     bytes(payload[offset:]),

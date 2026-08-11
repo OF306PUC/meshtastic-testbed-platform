@@ -28,7 +28,7 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(_REPO_ROOT / ".env")
 
-# ── Shared, non-secret radio settings (node and gateway must match) ───────────
+# Shared, non-secret radio settings (node and gateway must match)
 CHANNEL_TELEMETRY_IDX  = 0
 CHANNEL_TELEMETRY_NAME = "telCPS_RTC"
 CHANNEL_MSG_IDX = 1
@@ -38,11 +38,10 @@ LORA_PRESET  = "LONG_TURBO" # Ideally: "MEDIUM_FAST"
 REBROADCAST_MODE = "LOCAL_ONLY"
 
 # SX126x RX Boosted Gain: trades a little extra power for higher RX
-# sensitivity. Only the SX126x radio series honours it — the LilyGO T-Beam
-# uses an SX127x, so the field is stored but ignored there (harmless no-op).
+# sensitivity. 
 SX126X_RX_BOOSTED_GAIN = True
 
-# ── Shared secret: channel PSK (base64). From env; never commit the real value. ──
+# Shared secret: channel PSK (base64). From env; never commit the real value. 
 CHANNEL_TELEMETRY_PSK_B64 = os.environ.get("LORA_TELEMETRY_CHANNEL_PSK")
 CHANNEL_MSG_PSK_B64 = os.environ.get("LORA_MSG_CHANNEL_PSK")
 _missing = [
