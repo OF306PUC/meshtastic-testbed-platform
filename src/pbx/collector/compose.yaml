@@ -5,11 +5,13 @@
 # From this directory — `compose.yaml` is a default filename, so no -f needed:
 #
 #   cd src/pbx/collector
-#   COLLECTOR_SITE=p1 \
-#   NODE_SERIAL_PORT=/dev/serial/by-id/usb-1a86_...      # LiLyGO  (P2)
-#   PBX_SERIAL_PORT=/dev/serial/by-id/usb-SEGGER_...     # nRF52840 (P1)
-#   BROKER_ADDRESS=<gateway host> \
+#   cp .env.example .env      # then edit: site, the two serial ports, broker host
 #   docker compose up -d --build
+#
+# Settings live in `.env` beside this file rather than inline on the command
+# line. Compose loads it automatically for ${VAR} interpolation, which is a
+# different mechanism from the `env_file:` below — see .env.example, which
+# explains why both files exist and why swapping them fails silently.
 #
 # The two ports are easy to swap and the failure is quiet: point node-logd at the
 # nRF52840 and every line is rejected, since the two consoles share no grammar.
@@ -20,10 +22,12 @@
 # to the context, so it stays repo-root-relative.
 #
 # The `:?` guards apply to `docker compose build` as well, not just `up`: Compose
-# interpolates the whole file before it does anything. Set the variables for a
-# bare build too. The trade is deliberate — a collector started against the wrong
-# device comes up clean and reports nothing, so failing loudly here is worth the
-# small friction.
+# interpolates the whole file before it does anything, so `.env` has to be in
+# place even for a bare build. They are kept now that the values come from a
+# file, because the realistic failure changed rather than went away: no longer a
+# forgotten variable on the command line, but a `.env` copied from the example
+# and left half-edited. A collector pointed at the wrong device comes up clean
+# and reports nothing, so failing loudly is worth the small friction.
 #
 # The gateway host needs a stable address on the building network for this to
 # keep working across reboots — see ADR-0002 § Open questions.
