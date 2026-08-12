@@ -123,14 +123,27 @@ class MeshReceiver:
         received_at = time.time()
         rssi        = packet.get("rxRssi")
         snr         = packet.get("rxSnr")
+        rssi        = packet.get("rxRssi")
+        snr         = packet.get("rxSnr")
+        hop_limit   = packet.get("hopLimit")
+        hop_start   = packet.get("hopStart")
+        hop_taken   = (hop_start - hop_limit
+                        if hop_start is not None and hop_limit is not None
+                        else None)
+        # Default to 0 explicitly:
+        channel     = packet.get("channel", 0)
 
         print(f"[MESH] {decoded.get('portnum')}")
 
         if decoded.get("portnum") not in self._APP_FIELDS:
             return
 
-        if decoded["portnum"] == "PRIVATE_APP" or "TEXT_MESSAGE_APP":
-            self._handle_text_messages()
+        if decoded["portnum"] in _FRAME_HDRS:
+            payload = decoded.get("payload")
+            portnum = decoded.get("portnum")
+            self._handle_text_messages(sender_id, label, payload, portnum, 
+                                       rssi, snr, hop_taken, channel, received_at, 
+                                       packet.get("id"))
 
         if decoded["portnum"] == "POSITION_APP":
             pos       = decoded.get("position", {})
