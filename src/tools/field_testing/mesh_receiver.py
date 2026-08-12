@@ -8,6 +8,7 @@ own GPS position — for offline range/walk-test analysis with plot_data.py.
 import csv
 import os
 import time
+import struct 
 import collections
 import datetime
 import threading
@@ -17,6 +18,15 @@ from pubsub import pub
 from typing import Callable, Optional
 
 
+_FRAME_HDR_UNICAST   = struct.Struct(">BII")   # version, src_id, dst_id -> 9 B
+_FRAME_HDR_BROADCAST = struct.Struct(">BI")    # version, src_id         -> 5 B
+_FRAME_VERSION       = 0x01                    # PROXY_VERSION
+
+_FRAME_HDRS = {
+    "PRIVATE_APP":      _FRAME_HDR_UNICAST,
+    "TEXT_MESSAGE_APP": _FRAME_HDR_BROADCAST,
+}
+
 class MeshReceiver:
     """
     Connects to the local Meshtastic gateway over serial, listens for
@@ -25,9 +35,9 @@ class MeshReceiver:
     own GPS position through the same subscription.
     """
 
-    SEEN_MAX    = 5
+    SEEN_MAX    = 10
 
-    _APP_FIELDS = ["TELEMETRY_APP", "POSITION_APP"]
+    _APP_FIELDS = ["PRIVATE_APP", "TEXT_MESSAGE_APP", "TELEMETRY_APP", "POSITION_APP"]
 
     def __init__(
         self,
@@ -118,6 +128,9 @@ class MeshReceiver:
 
         if decoded.get("portnum") not in self._APP_FIELDS:
             return
+
+        if decoded["portnum"] == "PRIVATE_APP" or "TEXT_MESSAGE_APP":
+            self._handle_text_messages()
 
         if decoded["portnum"] == "POSITION_APP":
             pos       = decoded.get("position", {})
@@ -280,6 +293,69 @@ class MeshReceiver:
 
         if self.on_env_telemetry:
             self.on_env_telemetry(record)
+
+
+    def _parse_pbx_frame(self, payload, portnum) -> dict:
+        hdr = _FRAME_HDRS.get(portnum)
+        if hdr is None:
+            return None
+        if not isinstance(payload, (bytes, bytearray)):
+            return None
+        if len(payload) < hdr.size:
+            return None
+
+        fields = hdr.unpack_from(payload, 0)
+        fw_ver = fields[0]
+        if fw_ver != _FRAME_VERSION:
+            return None
+
+        src    = fields[1]
+        dst    = fields[2] if len(fields) > 2 else None
+        offset = hdr.size
+        return {
+            "fw_ver":      fw_ver,
+            "src_id":      str(src),
+            "dst_id":      str(dst) if dst is not None else None,
+            "content":     bytes(payload[offset:]),
+            "content_len": len(payload) - offset,
+        }
+
+    def _handle_text_messages(
+            self, node_id: str, label: str, payload: bytes, portnum: str,
+            rssi: int, snr: int, hop: int, channel: int, received_at: int,
+            pkt_id=None):
+        """
+        Parses one PBX application frame and publishes its metadata.
+        """
+        frame = self._parse_pbx_frame(payload, portnum)
+        if frame is None:
+            n = len(payload) if payload else 0
+            print(f"[MSG] Malformed {portnum} frame from {label} ({node_id}): {n} B")
+            return
+
+        record = {
+            "node_id":     node_id,             # mesh node we heard it FROM (relay)
+            "node_label":  label,
+            "portnum":     portnum,             # PRIVATE_APP routed / TEXT_MESSAGE_APP broadcast
+            "channel":     channel,             # 0=telemetry, 1=messaging (see below)
+            "src_id":      frame["src_id"],     # app-level originator (phone)
+            "dst_id":      frame["dst_id"],     # None on broadcast frames
+            "fw_ver":      frame["fw_ver"],
+            "pkt_id":      pkt_id,              # mesh-layer id, for correlation
+            "malformed":   0,
+            "payload_len": len(payload),
+            "content_len": frame["content_len"],
+            "rssi":        rssi,
+            "snr":         snr,
+            "hop":         hop,
+            "received_at": received_at,
+        }
+        if self.capture_content:
+            record["content_hex"] = frame["content"].hex()
+
+        print(f"\n[MSG] {frame['src_id']} -> {frame['dst_id'] or 'broadcast'} "
+                f"via {label} (fw={frame['fw_ver']}, {frame['content_len']} B, "
+                f"hop={hop}, rssi={rssi})")
 
     def _csv_path(self, label: str, kind: str) -> str:
         date_str = datetime.date.today().isoformat()
