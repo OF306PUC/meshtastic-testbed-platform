@@ -69,6 +69,7 @@ def main():
     run(
         f'meshtastic {port_flag} --ch-set name "{rc.CHANNEL_TELEMETRY_NAME}" '
         f'--ch-set psk {rc.CHANNEL_TELEMETRY_PSK_B64} '
+        f'--ch-set module_settings.position_precision {rc.POSITION_PRECISION} '
         f'--ch-index {rc.CHANNEL_TELEMETRY_IDX}'
     )
 
@@ -80,6 +81,7 @@ def main():
     run(f'meshtastic {port_flag} --ch-add "{rc.CHANNEL_MSG_NAME}"')
     run(
         f'meshtastic {port_flag} --ch-set psk {rc.CHANNEL_MSG_PSK_B64} '
+        f'--ch-set module_settings.position_precision {rc.POSITION_PRECISION} '
         f'--ch-index {rc.CHANNEL_MSG_IDX}'
     )
 
