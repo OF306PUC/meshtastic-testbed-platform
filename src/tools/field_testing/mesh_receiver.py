@@ -118,7 +118,6 @@ class MeshReceiver:
         if sender_id not in self.known_nodes:
             return
 
-        print(f"[PACKET] {packet}")
         label       = self.known_nodes[sender_id]
         received_at = time.time()
         rssi        = packet.get("rxRssi")
