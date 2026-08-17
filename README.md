@@ -110,7 +110,8 @@ meshtastic-testbed-platform/
 ├── .env                              # Channel PSK and secrets (gitignored; see .example)
 ├── .env.example                      # Template for .env
 ├── mesh_config.json                  # Per-node mesh parameters (roles, hop limits, IDs)
-└── requirements.txt                  # Python dependencies
+├── requirements.txt                  # Provisioning + inspection deps (host)
+└── requirements-analysis.txt         # Plotting deps (matplotlib/pandas), optional
 ```
 
 ---
@@ -264,13 +265,28 @@ Five accounts are created, one per role, with per-topic rules in `mqtt/aclfile`.
 The PBX collectors `p1`/`p2` may write only their own subtree, so neither can
 forge the other's measurements.
 
-The runtime stack runs entirely in Docker — no Python install is needed to run it. A local virtualenv is only required for the **one-time hardware-configuration scripts** (`configure.py`, `check_node_info.py`, `plot_history.py`):
+The runtime stack runs entirely in Docker — no Python install is needed to run it, and nothing below has to be installed on the gateway Pi or a collector Pi. A local virtualenv is only required for the **hardware-configuration and analysis scripts**, and those are two separate dependency sets:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+
+# Provisioning + inspection: configure.py, check_node_info.py
 pip install -r requirements.txt
+
+# Only if you also plot: plot_history.py, field_testing/plot_data.py
+pip install -r requirements-analysis.txt
 ```
+
+The split is deliberate. `requirements-analysis.txt` pulls matplotlib, pandas and
+numpy, which compile from source wherever a platform has no prebuilt wheel — so
+provisioning a radio no longer drags a numeric stack along, and a machine that
+only plots does not need `meshtastic` at all.
+
+> If a fresh install fails on a Raspberry Pi with TLS or certificate errors,
+> check the clock before the packages: `timedatectl`. A Pi has no battery-backed
+> RTC and restores a stale time at boot, which makes valid certificates look
+> not-yet-valid and breaks `pip` and `apt` alike.
 
 ---
 
