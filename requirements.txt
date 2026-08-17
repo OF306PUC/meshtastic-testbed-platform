@@ -1,42 +1,56 @@
-# Host-side dependencies for the hardware provisioning and inspection scripts:
-#   src/node/configure.py · src/gateway/configure.py · src/pbx/configure.py
-#   src/tools/field_testing/configure_device.py · src/tools/check_node_info.py
+# Host-side dependencies for every script that runs outside a container:
 #
-#   python -m venv .venv && .venv/bin/pip install -r requirements.txt
+#   provisioning + inspection   src/node/configure.py · src/gateway/configure.py
+#                               src/pbx/configure.py · src/tools/check_node_info.py
+#                               src/tools/field_testing/configure_device.py
+#   analysis + plotting         src/tools/plot_history.py
+#                               src/tools/field_testing/plot_data.py
 #
-# NOT needed to run the stack — that is all containerised and each image installs
-# its own set (src/gateway, src/pbx/collector, monitor). Nothing here has to be
-# installed on the gateway Pi or on a collector Pi.
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 #
-# The plotting tools need matplotlib/pandas, which are heavy and slow to build
-# where no wheel exists: they live in requirements-analysis.txt so provisioning a
-# radio does not drag a numeric stack along. Install both if you do both.
+# NOT needed to run the platform — that is all containerised, and each image
+# installs its own set (src/gateway, src/pbx/collector, monitor). Nothing here
+# has to be installed on the gateway Pi or on a collector Pi.
 #
 # Only direct imports are listed. Transitive dependencies are left to the
-# resolver on purpose — this file used to pin 22 packages, 15 of them meshtastic's
-# and requests' own transitive tree, which broke installs in two ways:
+# resolver on purpose. This file used to pin 22 packages, 15 of them meshtastic's
+# and requests' own transitive tree, which broke installs two ways:
 #
-#   * dbus-fast was pinned unconditionally. bleak only requires it on Linux
+#   * dbus-fast was pinned unconditionally. bleak requires it only on Linux
 #     (`platform_system == "Linux"`), and dbus-fast 4.0.0 publishes wheels for
 #     linux x86_64/aarch64 and macOS arm64 but NONE for Windows, and none for
-#     32-bit armv7l either. On those platforms pip fell back to the sdist and the
-#     whole install failed — one line taking down the other 21. Dropping the pin
-#     lets bleak's own marker decide, so the package is simply skipped where it
-#     does not belong.
+#     32-bit armv7l. On those platforms pip fell back to the sdist and the whole
+#     install failed — one line taking down the other 21. Without the pin,
+#     bleak's own marker decides and the package is skipped where it does not
+#     belong.
 #   * hand-pinned transitives fight the resolver on any platform or Python
-#     version where meshtastic resolves its tree differently. Verified: in a
-#     clean venv this file installs and all 157 tests pass, with the resolver
-#     picking newer bleak/protobuf/requests than the old pins allowed.
+#     version where meshtastic resolves its tree differently.
 #
 # If you ever need byte-identical environments, generate a lock file from this —
 # do not go back to hand-pinning someone else's dependencies.
+
+# ── Provisioning and inspection ───────────────────────────────────────────────
 
 # The Meshtastic CLI and Python API. The [cli] extra is what pulls argcomplete,
 # dotmap, print-color, pyqrcode and wcwidth — previously listed by hand, which
 # hid the fact that the plain package does not provide a working CLI.
 meshtastic[cli]==2.7.8
 
-# Direct imports in this repo's own code, pinned because we call them:
 pyserial==3.5        # src/pbx/collector/serial_lines.py, src/pbx/fetch_node_config.py
 Pypubsub==4.0.7      # src/gateway/mesh_receiver.py (pubsub.pub)
 paho-mqtt==2.1.0     # src/gateway/mqtt_connector.py, monitor/utils.py
+
+# ── Analysis and plotting ─────────────────────────────────────────────────────
+#
+# The expensive half: these pull numpy, pillow, contourpy, kiwisolver and
+# fonttools, which compile from source on any platform with no prebuilt wheel.
+# Linux x86_64 and aarch64 both have wheels, so the cost is a longer first
+# install rather than a toolchain requirement.
+#
+# Lower bounds rather than exact pins: this is read-only analysis of data that
+# already exists, so tracking a platform's available wheel matters more than
+# reproducing one exact version.
+
+matplotlib>=3.6      # plot_history.py, field_testing/plot_data.py
+pandas>=2.0          # same
+requests>=2.31       # plot_history.py queries the InfluxDB HTTP API directly

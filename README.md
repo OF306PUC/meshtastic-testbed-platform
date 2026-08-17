@@ -88,12 +88,10 @@ The runtime is entirely containerised. Nothing here is needed to *run* the platf
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-
-pip install -r requirements.txt            # provisioning + inspection
-pip install -r requirements-analysis.txt   # only if you also plot
+pip install -r requirements.txt
 ```
 
-The two sets are split on purpose: the analysis half pulls matplotlib, pandas and numpy, which compile from source wherever a platform ships no wheel. Configuring a radio should not cost a numeric stack.
+One file, one command — provisioning, inspection and plotting together. The plotting half brings matplotlib, pandas and numpy, so expect a longer first install; on Linux x86_64 and aarch64 every one of them has a prebuilt wheel, so it costs time rather than a toolchain.
 
 > **If `pip` fails with TLS or certificate errors on a Raspberry Pi, check the clock before the packages** — `timedatectl`. A Pi has no battery-backed clock and restores a stale time at boot, which makes valid certificates look not-yet-valid and breaks `pip`, `apt` and `docker pull` alike.
 
@@ -273,8 +271,7 @@ meshtastic-testbed-platform/
 │
 ├── docker-compose.yaml  # The runtime stack
 ├── mesh_config.json     # Per-node mesh parameters
-├── requirements.txt              # Provisioning + inspection dependencies
-└── requirements-analysis.txt     # Plotting dependencies (optional)
+└── requirements.txt     # Host dependencies: provisioning, inspection, plotting
 ```
 
 ---
