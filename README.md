@@ -267,7 +267,7 @@ meshtastic-testbed-platform/
 ├── mqtt/                # Broker config, ACL, credential generator
 ├── firmware/            # Erase + Meshtastic UF2 binaries for the nRF52 nodes
 ├── tests/               # Unit tests for the parsers, trackers and config loaders
-├── docs/                # Architecture decisions, diagrams, deployment playbook, session log
+├── docs/                # Troubleshooting, architecture decisions, diagrams, playbook, session log
 │
 ├── docker-compose.yaml  # The runtime stack
 ├── mesh_config.json     # Per-node mesh parameters
@@ -278,7 +278,11 @@ meshtastic-testbed-platform/
 
 ## When something is wrong
 
-The failure mode worth learning to recognise: **containers up, dashboard rendering, zero data.** Almost always credentials, and quiet by design.
+**→ [`docs/troubleshooting.md`](docs/troubleshooting.md)** — the full catalogue, organised by symptom.
+
+Nearly every failure this platform produces is a *quiet* one: containers up, dashboard rendering, tools exiting zero, and no data. "No data" looks the same whether the cause is a wrong password, a wrong serial port, or a genuinely silent radio, so the guide is written around telling those apart rather than listing fixes.
+
+The one worth knowing by heart, because it is the most common:
 
 ```bash
 docker logs telegraf | grep -i connect               # expect a Connected per input
@@ -286,18 +290,9 @@ docker logs meshtastic-testbed-web | grep '\[MQTT\]' # expect connected, not rc=
 docker logs meshtastic-testbed-mqtt-broker | grep -i "not authoris"
 ```
 
-`rc=5` or `not authorised` means the password in `configuration.env` does not match the hash in `mqtt/pwfile`. Regenerate both together — or, if the code was just updated, rebuild: an image carrying pre-credential code connects anonymously and is refused.
+`rc=5` or `not authorised` means the password in `configuration.env` does not match the hash in `mqtt/pwfile`. Regenerate both together — or, if the code was just updated, rebuild.
 
-To watch the broker directly, which works even when the database does not:
-
-```bash
-docker exec meshtastic-testbed-mqtt-broker mosquitto_sub \
-  -t 'meshtastic-testbed/#' -v -u monitor -P "$MQTT_PASSWORD_MONITOR"
-```
-
-**Nodes all reporting the same coordinates** means their position precision is reduced — the radio masks off the low bits before transmitting, so the detail is gone before it reaches the gateway. `check_node_info.py` names the offending nodes. Reconfiguring fixes new data; already-stored positions cannot be recovered.
-
-**A sensor detected but no telemetry** is usually the I2C cable, not the code. The bus scan and the driver init are separate steps, and a marginal Grove connection passes the scan and fails the init — see [`docs/architecture/ADR-0001-canopy-sensor-i2c-link.md`](docs/architecture/ADR-0001-canopy-sensor-i2c-link.md).
+Also covered there: a sensor detected but never reporting, a Pi's stale clock breaking `pip`/`apt`/`docker` and silently filing measurements in the past, nodes all reporting identical coordinates, a gateway on the wrong serial port, crossed collector ports, and Compose restarting the old image.
 
 ---
 
